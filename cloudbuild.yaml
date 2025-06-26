@@ -8,11 +8,12 @@ substitutions:
   _REGION:          "europe-west1"
   _COMPOSER_BUCKET: "europe-west1-dataops-pfe-composer-env-bucket"
   _DATA_BUCKET:     "tmt-storage-01"
-  _TF_VAR_FILE:     "Terraform/terraform.tfvars"
+  # ← ici on retire le préfixe Terraform/
+  _TF_VAR_FILE:     "terraform.tfvars"
   _IMAGE:           "gcr.io/$_PROJECT_ID/dataloader-image:latest"
 
 steps:
-  # 0) Adoucir le warning Git
+  # 0) Silence Git warning
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Git Config"
     entrypoint: "bash"
@@ -21,7 +22,7 @@ steps:
       - |
         git config --global init.defaultBranch main
 
-  # 1) Init Terraform + téléchargement des providers
+  # 1) Init Terraform (dans /workspace/Terraform)
   - name: "hashicorp/terraform:light"
     id: "Terraform Init"
     entrypoint: "sh"
@@ -31,7 +32,7 @@ steps:
         cd Terraform
         terraform init -var-file=$_TF_VAR_FILE
 
-  # 2) Validate (certifie que la config est correcte)
+  # 2) Validate Terraform
   - name: "hashicorp/terraform:light"
     id: "Terraform Validate"
     entrypoint: "sh"
@@ -51,7 +52,7 @@ steps:
         cd Terraform
         terraform apply -auto-approve -var-file=$_TF_VAR_FILE
 
-  # 4) Build + Push Docker pour Cloud Run
+  # 4) Build & push Docker
   - name: "gcr.io/cloud-builders/docker"
     id: "Build Dataloader"
     args: ["build","-t","$_IMAGE","-f","Dataloader/Dockerfile","."]
@@ -60,7 +61,7 @@ steps:
     id: "Push Dataloader"
     args: ["push","$_IMAGE"]
 
-  # 5) Copier le CSV vers Storage
+  # 5) Upload CSV
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Upload CSV"
     entrypoint: "bash"
@@ -69,7 +70,7 @@ steps:
       - |
         gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://$_DATA_BUCKET/
 
-  # 6) Synchroniser les DAGs dans Composer
+  # 6) Sync DAGs
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Sync DAGs"
     entrypoint: "bash"
@@ -78,7 +79,7 @@ steps:
       - |
         gsutil -m rsync -r Dags gs://$_COMPOSER_BUCKET/dags
 
-  # 7) Déployer sur Cloud Run
+  # 7) Deploy Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Deploy Cloud Run"
     entrypoint: "bash"
