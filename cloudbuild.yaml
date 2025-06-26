@@ -1,0 +1,71 @@
+# cloudbuild.yaml
+substitutions:
+  _COMPOSER_BUCKET: "europe-west1-dataops-pfe-composer-env-bucket"  # Bucket DAGs Composer
+  _DATA_BUCKET:    "tmt-storage-01"                                 # Bucket de données
+  _TF_VAR_FILE:    "Terraform/terraform.tfvars"                     # Chemin vers ton tfvars
+
+steps:
+# 1) Provisionner l'infra avec Terraform
+- name: "hashicorp/terraform:light"
+  id: "Terraform Apply"
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+      cd Terraform
+      terraform init -var-file=$_TF_VAR_FILE
+      terraform apply -auto-approve
+
+# 2) Builder l'image Docker pour le dataloader Cloud Run
+- name: "gcr.io/cloud-builders/docker"
+  id: "Build Dataloader"
+  args:
+    [
+      "build",
+      "-t", "gcr.io/tmtrackdev01/dataloader-image:latest",
+      "-f", "Dags/Dockerfile",
+      "."
+    ]
+
+# 3) Pusher l'image Docker vers le Container Registry
+- name: "gcr.io/cloud-builders/docker"
+  id: "Push Dataloader"
+  args:
+    [
+      "push",
+      "gcr.io/tmtrackdev01/dataloader-image:latest"
+    ]
+
+# 4) Copier le CSV d'inventaire dans le bucket de données
+- name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+  id: "Upload CSV"
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+      gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://$_DATA_BUCKET/
+
+# 5) Synchroniser le dossier Dags/ vers l’environnement Cloud Composer
+- name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+  id: "Sync DAGs"
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+      gsutil -m rsync -r Dags gs://$_COMPOSER_BUCKET/dags
+
+# 6) Déployer/mettre à jour le service Cloud Run (dataloader)
+- name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+  id: "Deploy Cloud Run"
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+      gcloud run deploy inventory-dataloader \
+        --image gcr.io/tmtrackdev01/dataloader-image:latest \
+        --region europe-west1 \
+        --platform managed \
+        --allow-unauthenticated
+
+images:
+  - "gcr.io/tmtrackdev01/dataloader-image:latest"

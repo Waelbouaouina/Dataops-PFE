@@ -1,0 +1,6 @@
+[
+  { "name": "resource_group",    "type": "STRING",  "mode": "REQUIRED" },
+  { "name": "type",              "type": "STRING",  "mode": "REQUIRED" },
+  { "name": "resource_count",    "type": "INTEGER", "mode": "REQUIRED" },
+  { "name": "report_date",       "type": "DATE",    "mode": "REQUIRED" }
+]
