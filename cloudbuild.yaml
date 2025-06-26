@@ -1,7 +1,4 @@
-# cloudbuild.yaml
-
 options:
-  # Envoie uniquement vers Cloud Logging, pas de bucket GCS requis
   logging: CLOUD_LOGGING_ONLY
 
 substitutions:
@@ -13,66 +10,42 @@ substitutions:
   _IMAGE:           "gcr.io/$_PROJECT_ID/dataloader-image:latest"
 
 steps:
-# 1) Infra as Code
-- name: "hashicorp/terraform:light"
-  id: "Terraform Apply"
-  entrypoint: "bash"
-  args:
-    - "-c"
-    - |
-      cd Terraform
-      terraform init -var-file=$_TF_VAR_FILE
-      terraform apply -auto-approve
-
-# 2) Build Docker image pour Cloud Run
-- name: "gcr.io/cloud-builders/docker"
-  id: "Build Dataloader"
-  args:
-    - "build"
-    - "-t"
-    - "$_IMAGE"
-    - "-f"
-    - "Dataloader/Dockerfile"
-    - "."
-
-# 3) Push Docker image
-- name: "gcr.io/cloud-builders/docker"
-  id: "Push Dataloader"
-  args:
-    - "push"
-    - "$_IMAGE"
-
-# 4) Copier le CSV d’inventaire dans le bucket Storage
-- name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
-  id: "Upload CSV"
-  entrypoint: "bash"
-  args:
-    - "-c"
-    - |
-      gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://$_DATA_BUCKET/
-
-# 5) Synchroniser les DAGs vers Cloud Composer
-- name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
-  id: "Sync DAGs"
-  entrypoint: "bash"
-  args:
-    - "-c"
-    - |
-      gsutil -m rsync -r Dags gs://$_COMPOSER_BUCKET/dags
-
-# 6) Déployer / mettre à jour Cloud Run
-- name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
-  id: "Deploy Cloud Run"
-  entrypoint: "bash"
-  args:
-    - "-c"
-    - |
-      gcloud run deploy dataloader-service \
-        --image "$_IMAGE" \
-        --region "$_REGION" \
-        --platform managed \
-        --allow-unauthenticated
-
-# Optionnel : déclarer l’image produite pour Cloud Build UI
-images:
-  - "$_IMAGE"
+  # 1) Terraform
+  - name: "hashicorp/terraform:light"
+    id: "Terraform Apply"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        cd Terraform
+        terraform init -var-file=$_TF_VAR_FILE
+        terraform apply -auto-approve
+  # 2) Build + Push Docker
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Build Dataloader"
+    args: ["build","-t","$_IMAGE","-f","Dataloader/Dockerfile","."]
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Push Dataloader"
+    args: ["push","$_IMAGE"]
+  # 3) CSV → bucket
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "Upload CSV"
+    entrypoint: "bash"
+    args: ["-c","gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://$_DATA_BUCKET/"]
+  # 4) DAGs → Composer
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "Sync DAGs"
+    entrypoint: "bash"
+    args: ["-c","gsutil -m rsync -r Dags gs://$_COMPOSER_BUCKET/dags"]
+  # 5) Deploy Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "Deploy Cloud Run"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud run deploy dataloader-service \
+          --image "$_IMAGE" \
+          --region "$_REGION" \
+          --platform managed \
+          --allow-unauthenticated
