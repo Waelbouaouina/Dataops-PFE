@@ -1,4 +1,4 @@
-# ⚙️ Architecture DataOps Serverless – Orchestration & Valorisation des Données
+# ⚙️ Mise en œuvre d'une architecture DataOps serverless pour l'orchestration des pipelines de données
 
 ## 🎯 Objectif du Projet
 
