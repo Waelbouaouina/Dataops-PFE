@@ -1,11 +1,19 @@
 # cloudbuild.yaml
+
+options:
+  # Envoie uniquement vers Cloud Logging, pas de bucket GCS requis
+  logging: CLOUD_LOGGING_ONLY
+
 substitutions:
-  _COMPOSER_BUCKET: "europe-west1-dataops-pfe-composer-env-bucket"  # Bucket DAGs Composer
-  _DATA_BUCKET:    "tmt-storage-01"                                 # Bucket de données
-  _TF_VAR_FILE:    "Terraform/terraform.tfvars"                     # Chemin vers ton tfvars
+  _PROJECT_ID:      "tmtrackdev01"
+  _REGION:          "europe-west1"
+  _COMPOSER_BUCKET: "europe-west1-dataops-pfe-composer-env-bucket"
+  _DATA_BUCKET:     "tmt-storage-01"
+  _TF_VAR_FILE:     "Terraform/terraform.tfvars"
+  _IMAGE:           "gcr.io/$_PROJECT_ID/dataloader-image:latest"
 
 steps:
-# 1) Provisionner l'infra avec Terraform
+# 1) Infra as Code
 - name: "hashicorp/terraform:light"
   id: "Terraform Apply"
   entrypoint: "bash"
@@ -16,27 +24,25 @@ steps:
       terraform init -var-file=$_TF_VAR_FILE
       terraform apply -auto-approve
 
-# 2) Builder l'image Docker pour le dataloader Cloud Run
+# 2) Build Docker image pour Cloud Run
 - name: "gcr.io/cloud-builders/docker"
   id: "Build Dataloader"
   args:
-    [
-      "build",
-      "-t", "gcr.io/tmtrackdev01/dataloader-image:latest",
-      "-f", "Dags/Dockerfile",
-      "."
-    ]
+    - "build"
+    - "-t"
+    - "$_IMAGE"
+    - "-f"
+    - "Dataloader/Dockerfile"
+    - "."
 
-# 3) Pusher l'image Docker vers le Container Registry
+# 3) Push Docker image
 - name: "gcr.io/cloud-builders/docker"
   id: "Push Dataloader"
   args:
-    [
-      "push",
-      "gcr.io/tmtrackdev01/dataloader-image:latest"
-    ]
+    - "push"
+    - "$_IMAGE"
 
-# 4) Copier le CSV d'inventaire dans le bucket de données
+# 4) Copier le CSV d’inventaire dans le bucket Storage
 - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
   id: "Upload CSV"
   entrypoint: "bash"
@@ -45,7 +51,7 @@ steps:
     - |
       gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://$_DATA_BUCKET/
 
-# 5) Synchroniser le dossier Dags/ vers l’environnement Cloud Composer
+# 5) Synchroniser les DAGs vers Cloud Composer
 - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
   id: "Sync DAGs"
   entrypoint: "bash"
@@ -54,18 +60,19 @@ steps:
     - |
       gsutil -m rsync -r Dags gs://$_COMPOSER_BUCKET/dags
 
-# 6) Déployer/mettre à jour le service Cloud Run (dataloader)
+# 6) Déployer / mettre à jour Cloud Run
 - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
   id: "Deploy Cloud Run"
   entrypoint: "bash"
   args:
     - "-c"
     - |
-      gcloud run deploy inventory-dataloader \
-        --image gcr.io/tmtrackdev01/dataloader-image:latest \
-        --region europe-west1 \
+      gcloud run deploy dataloader-service \
+        --image "$_IMAGE" \
+        --region "$_REGION" \
         --platform managed \
         --allow-unauthenticated
 
+# Optionnel : déclarer l’image produite pour Cloud Build UI
 images:
-  - "gcr.io/tmtrackdev01/dataloader-image:latest"
+  - "$_IMAGE"
