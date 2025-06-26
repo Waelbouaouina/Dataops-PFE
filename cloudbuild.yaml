@@ -13,7 +13,7 @@ steps:
   # 1) Terraform
   - name: "hashicorp/terraform:light"
     id: "Terraform Apply"
-    entrypoint: "bash"
+    entrypoint: "sh"
     args:
       - "-c"
       - |
