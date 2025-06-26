@@ -1,4 +1,7 @@
+# cloudbuild.yaml
+
 options:
+  # Envoie uniquement vers Cloud Logging, pas de bucket GCS requis
   logging: CLOUD_LOGGING_ONLY
 
 substitutions:
@@ -10,7 +13,17 @@ substitutions:
   _IMAGE:           "gcr.io/$_PROJECT_ID/dataloader-image:latest"
 
 steps:
-  # 1) Terraform
+  # 0) Validation de la syntaxe Terraform
+  - name: "hashicorp/terraform:light"
+    id: "Terraform Validate"
+    entrypoint: "sh"
+    args:
+      - "-c"
+      - |
+        cd Terraform
+        terraform validate
+
+  # 1) Infra as Code (init + apply)
   - name: "hashicorp/terraform:light"
     id: "Terraform Apply"
     entrypoint: "sh"
@@ -20,24 +33,42 @@ steps:
         cd Terraform
         terraform init -var-file=$_TF_VAR_FILE
         terraform apply -auto-approve
-  # 2) Build + Push Docker
+
+  # 2) Build + Push Docker image pour Cloud Run
   - name: "gcr.io/cloud-builders/docker"
     id: "Build Dataloader"
-    args: ["build","-t","$_IMAGE","-f","Dataloader/Dockerfile","."]
+    args:
+      - "build"
+      - "-t"
+      - "$_IMAGE"
+      - "-f"
+      - "Dataloader/Dockerfile"
+      - "."
   - name: "gcr.io/cloud-builders/docker"
     id: "Push Dataloader"
-    args: ["push","$_IMAGE"]
-  # 3) CSV → bucket
+    args:
+      - "push"
+      - "$_IMAGE"
+
+  # 3) Copier le CSV d’inventaire dans le bucket Storage
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Upload CSV"
     entrypoint: "bash"
-    args: ["-c","gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://$_DATA_BUCKET/"]
-  # 4) DAGs → Composer
+    args:
+      - "-c"
+      - |
+        gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://$_DATA_BUCKET/
+
+  # 4) Synchroniser les DAGs vers Cloud Composer
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Sync DAGs"
     entrypoint: "bash"
-    args: ["-c","gsutil -m rsync -r Dags gs://$_COMPOSER_BUCKET/dags"]
-  # 5) Deploy Cloud Run
+    args:
+      - "-c"
+      - |
+        gsutil -m rsync -r Dags gs://$_COMPOSER_BUCKET/dags
+
+  # 5) Déployer / mettre à jour Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Deploy Cloud Run"
     entrypoint: "bash"
