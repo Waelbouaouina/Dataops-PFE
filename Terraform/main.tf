@@ -1,7 +1,5 @@
-// Terraform/main.tf
-
 ##############################
-// Providers & APIs
+# Providers & APIs
 ##############################
 
 provider "google" {
@@ -14,45 +12,57 @@ provider "google-beta" {
   region  = var.region
 }
 
-resource "google_project_service" "container_registry" {
+resource "google_project_service" "container_registry" { 
   project = var.project_id
   service = "containerregistry.googleapis.com"
 }
-resource "google_project_service" "artifact_registry" {
+resource "google_project_service" "artifact_registry" { 
   project = var.project_id
   service = "artifactregistry.googleapis.com"
 }
-resource "google_project_service" "bigquery_api" {
+resource "google_project_service" "bigquery_api" { 
   project = var.project_id
   service = "bigquery.googleapis.com"
 }
-resource "google_project_service" "storage_api" {
+resource "google_project_service" "storage_api" { 
   project = var.project_id
   service = "storage.googleapis.com"
 }
-resource "google_project_service" "pubsub_api" {
+resource "google_project_service" "pubsub_api" { 
   project = var.project_id
   service = "pubsub.googleapis.com"
 }
-resource "google_project_service" "composer_api" {
+resource "google_project_service" "composer_api" { 
   project = var.project_id
   service = "composer.googleapis.com"
 }
-resource "google_project_service" "dataflow_api" {
+resource "google_project_service" "dataflow_api" { 
   project = var.project_id
   service = "dataflow.googleapis.com"
 }
-resource "google_project_service" "cloudfunctions_api" {
+resource "google_project_service" "cloudfunctions_api" { 
   project = var.project_id
   service = "cloudfunctions.googleapis.com"
 }
-resource "google_project_service" "run_api" {
+resource "google_project_service" "run_api" { 
   project = var.project_id
   service = "run.googleapis.com"
 }
 
 ##############################
-// Service Account pour Cloud Run & Function
+# Buckets existants (data sources)
+##############################
+
+data "google_storage_bucket" "inventory_bucket" {
+  name = var.data_bucket
+}
+
+data "google_storage_bucket" "function_source_bucket" {
+  name = var.function_bucket
+}
+
+##############################
+# Service Account pour Cloud Run & Function
 ##############################
 
 resource "google_service_account" "dataloader_sa" {
@@ -61,34 +71,30 @@ resource "google_service_account" "dataloader_sa" {
 }
 
 ##############################
-// Buckets de Stockage
+# Packaging de la Cloud Function
 ##############################
-
-resource "google_storage_bucket" "inventory_bucket" {
-  name     = "inventory-bucket-${var.project_id}"
-  location = var.region
-  versioning { enabled = true }
-}
-
-resource "google_storage_bucket" "function_source_bucket" {
-  name     = "function-source-${var.project_id}"
-  location = var.region
-}
 
 resource "google_storage_bucket_object" "csv_validator_zip" {
   name   = "csv_validator.zip"
-  bucket = google_storage_bucket.function_source_bucket.name
-  source = "cloud_function/csv_validator.zip"
+  bucket = data.google_storage_bucket.function_source_bucket.name
+  source = "${path.module}/../cloud_function/csv_validator.zip"
 }
 
 ##############################
-// BigQuery Dataset & Tables
+# BigQuery Dataset & Tables
 ##############################
 
 resource "google_bigquery_dataset" "inventory_dataset" {
   dataset_id                 = "inventory_dataset"
   location                   = var.region
   delete_contents_on_destroy = false
+
+  lifecycle {
+    ignore_changes = [
+      default_partition_expiration_ms,
+      default_table_expiration_ms,
+    ]
+  }
 }
 
 resource "google_bigquery_table" "raw_table" {
@@ -110,7 +116,7 @@ resource "google_bigquery_table" "bds_table" {
 }
 
 ##############################
-// Cloud Run: Dataloader
+# Cloud Run: Dataloader
 ##############################
 
 resource "google_cloud_run_service" "dataloader_service" {
@@ -126,7 +132,7 @@ resource "google_cloud_run_service" "dataloader_service" {
 
         env {
           name  = "BUCKET_NAME"
-          value = google_storage_bucket.inventory_bucket.name
+          value = data.google_storage_bucket.inventory_bucket.name
         }
         env {
           name  = "BQ_DATASET"
@@ -147,7 +153,7 @@ resource "google_cloud_run_service" "dataloader_service" {
 }
 
 ##############################
-// Cloud Function: CSV Validator
+# Cloud Function: CSV Validator
 ##############################
 
 resource "google_cloudfunctions_function" "csv_validator" {
@@ -157,10 +163,10 @@ resource "google_cloudfunctions_function" "csv_validator" {
 
   event_trigger {
     event_type = "google.storage.object.finalize"
-    resource   = google_storage_bucket.inventory_bucket.name
+    resource   = data.google_storage_bucket.inventory_bucket.name
   }
 
-  source_archive_bucket = google_storage_bucket.function_source_bucket.name
+  source_archive_bucket = data.google_storage_bucket.function_source_bucket.name
   source_archive_object = google_storage_bucket_object.csv_validator_zip.name
   entry_point           = "validate_csv"
   service_account_email = google_service_account.dataloader_sa.email
@@ -172,7 +178,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
 }
 
 ##############################
-// Pub/Sub Topics
+# Pub/Sub Topics
 ##############################
 
 resource "google_pubsub_topic" "csv_success_topic" {
@@ -184,7 +190,7 @@ resource "google_pubsub_topic" "csv_error_topic" {
 }
 
 ##############################
-// Cloud Composer (Airflow) – Composer v2.x
+# Cloud Composer (Airflow) – Composer v2.x
 ##############################
 
 resource "google_composer_environment" "composer_env" {
@@ -193,6 +199,9 @@ resource "google_composer_environment" "composer_env" {
   region  = var.region
 
   config {
+    node_config {
+      service_account = google_service_account.dataloader_sa.email
+    }
     software_config {
       image_version = "composer-2.13.4-airflow-2.10.5"
     }
@@ -202,30 +211,4 @@ resource "google_composer_environment" "composer_env" {
 output "composer_dag_bucket" {
   value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
   description = "Bucket pour déposer les DAGs"
-}
-
-##############################
-// Monitoring & Data Catalog & Logging
-##############################
-
-// … tes resources google_monitoring_notification_channel, alert_policy,
-// google_data_catalog_entry_group, tag_template, google_logging_project_sink …
-
-##############################
-// Cloud Build Trigger (CI/CD)
-##############################
-
-resource "google_cloudbuild_trigger" "git_trigger" {
-  name    = "inventory-ci-trigger"
-  project = var.project_id
-
-  github {
-    owner = "Waelbouaouina"
-    name  = "Dataops-PFE"
-    push {
-      branch = "main"
-    }
-  }
-
-  filename = "cloudbuild.yaml"
 }
