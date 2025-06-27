@@ -21,12 +21,10 @@ resource "google_project_service" "container_registry" {
   project = var.project_id
   service = "containerregistry.googleapis.com"
 }
-
 resource "google_project_service" "artifact_registry" {
   project = var.project_id
   service = "artifactregistry.googleapis.com"
 }
-
 resource "google_project_service" "bigquery_api" {
   project = var.project_id
   service = "bigquery.googleapis.com"
@@ -194,22 +192,24 @@ resource "google_pubsub_topic" "csv_error_topic" {
 }
 
 ##############################
-// Cloud Composer (Airflow)
+// Cloud Composer (Airflow) – Composer v2.x
 ##############################
 
 resource "google_composer_environment" "composer_env" {
-  name   = "composer-environment"
-  region = var.region
+  project = var.project_id
+  name    = "composer-environment"
+  region  = var.region
 
   config {
-    node_config {
-      machine_type = "n1-standard-1"
-    }
     software_config {
-      image_version  = "composer-2.0.0-airflow-2.2.5"
-      python_version = "3"
+      # une version supportée  
+      image_version = "composer-2.13.4-airflow-2.10.5"
     }
-    node_count = 3
+    # pour custom CPU/Mémoire, utilise workloads_config (optionnel)
+    # workloads_config {
+    #   scheduler { cpu="2000m" memory="4Gi" }
+    #   webserver { cpu="1000m" memory="2Gi" }
+    # }
   }
 }
 
