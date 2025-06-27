@@ -1,3 +1,7 @@
+##############################
+# Subscription Pub/Sub → Cloud Run
+##############################
+
 resource "google_pubsub_subscription" "invoke_dataloader" {
   name  = "invoke-dataloader-sub"
   topic = google_pubsub_topic.csv_success_topic.name
@@ -5,7 +9,7 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
   push_config {
     push_endpoint = google_cloud_run_service.dataloader_service.status[0].url
     oidc_token {
-      service_account_email = google_service_account.dataloader_sa.email
+      service_account_email = data.google_service_account.dataloader_sa.email
     }
   }
 }
