@@ -34,33 +34,6 @@ resource "google_project_service" "composer_api" {
 }
 
 ##############################
-# Data sources – EXISTANTS
-##############################
-
-data "google_storage_bucket" "inventory_bucket" {
-  name = var.data_bucket
-}
-
-data "google_storage_bucket" "function_source_bucket" {
-  name = var.function_bucket
-}
-
-data "google_service_account" "dataloader_sa" {
-  project    = var.project_id
-  account_id = "dataloader-sa"
-}
-
-data "google_pubsub_topic" "csv_success_topic" {
-  project = var.project_id
-  name    = "csv-success-topic"
-}
-
-data "google_pubsub_topic" "csv_error_topic" {
-  project = var.project_id
-  name    = "csv-error-topic"
-}
-
-##############################
 # Cloud Function: packaging & deploy
 ##############################
 
@@ -78,7 +51,6 @@ resource "google_cloudfunctions_function" "csv_validator" {
 
   source_archive_bucket = data.google_storage_bucket.function_source_bucket.name
   source_archive_object = google_storage_bucket_object.csv_validator_zip.name
-
   service_account_email = data.google_service_account.dataloader_sa.email
 
   event_trigger {
@@ -151,7 +123,7 @@ resource "google_cloud_run_service" "dataloader_service" {
 }
 
 ##############################
-# Composer v2 – Environment
+# Cloud Composer v2 – Environment
 ##############################
 
 resource "google_composer_environment" "composer_env" {
