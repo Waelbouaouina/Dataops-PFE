@@ -1,6 +1,7 @@
 # cloudbuild.yaml
 
 options:
+  # Envoie uniquement les logs vers Cloud Logging, pas besoin de bucket GCS
   logging: CLOUD_LOGGING_ONLY
 
 substitutions:
@@ -8,12 +9,29 @@ substitutions:
   _REGION:          "europe-west1"
   _COMPOSER_BUCKET: "europe-west1-dataops-pfe-composer-env-bucket"
   _DATA_BUCKET:     "tmt-storage-01"
-  # ← ici on retire le préfixe Terraform/
+  # ← On met juste le nom du fichier, pas le chemin relatif
   _TF_VAR_FILE:     "terraform.tfvars"
   _IMAGE:           "gcr.io/$_PROJECT_ID/dataloader-image:latest"
 
 steps:
-  # 0) Silence Git warning
+  # 0) S’assurer que les APIs GCP nécessaires sont activées
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "Enable APIs"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud services enable \
+          serviceusage.googleapis.com \
+          cloudbuild.googleapis.com \
+          pubsub.googleapis.com \
+          bigquery.googleapis.com \
+          dataflow.googleapis.com \
+          composer.googleapis.com \
+          datacatalog.googleapis.com \
+          monitoring.googleapis.com
+
+  # 1) Adoucir le warning Git sur la branche par défaut
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Git Config"
     entrypoint: "bash"
@@ -22,7 +40,7 @@ steps:
       - |
         git config --global init.defaultBranch main
 
-  # 1) Init Terraform (dans /workspace/Terraform)
+  # 2) Terraform Init (télécharge les providers)
   - name: "hashicorp/terraform:light"
     id: "Terraform Init"
     entrypoint: "sh"
@@ -32,7 +50,7 @@ steps:
         cd Terraform
         terraform init -var-file=$_TF_VAR_FILE
 
-  # 2) Validate Terraform
+  # 3) Terraform Validate (syntaxe & cohérence)
   - name: "hashicorp/terraform:light"
     id: "Terraform Validate"
     entrypoint: "sh"
@@ -42,7 +60,7 @@ steps:
         cd Terraform
         terraform validate
 
-  # 3) Apply Terraform
+  # 4) Terraform Apply (création des ressources)
   - name: "hashicorp/terraform:light"
     id: "Terraform Apply"
     entrypoint: "sh"
@@ -52,16 +70,23 @@ steps:
         cd Terraform
         terraform apply -auto-approve -var-file=$_TF_VAR_FILE
 
-  # 4) Build & push Docker
+  # 5) Build + Push Docker image pour Cloud Run
   - name: "gcr.io/cloud-builders/docker"
     id: "Build Dataloader"
-    args: ["build","-t","$_IMAGE","-f","Dataloader/Dockerfile","."]
-
+    args:
+      - "build"
+      - "-t"
+      - "$_IMAGE"
+      - "-f"
+      - "Dataloader/Dockerfile"
+      - "."
   - name: "gcr.io/cloud-builders/docker"
     id: "Push Dataloader"
-    args: ["push","$_IMAGE"]
+    args:
+      - "push"
+      - "$_IMAGE"
 
-  # 5) Upload CSV
+  # 6) Copier le CSV d’inventaire dans Cloud Storage
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Upload CSV"
     entrypoint: "bash"
@@ -70,7 +95,7 @@ steps:
       - |
         gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://$_DATA_BUCKET/
 
-  # 6) Sync DAGs
+  # 7) Synchroniser les DAGs vers Cloud Composer
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Sync DAGs"
     entrypoint: "bash"
@@ -79,7 +104,7 @@ steps:
       - |
         gsutil -m rsync -r Dags gs://$_COMPOSER_BUCKET/dags
 
-  # 7) Deploy Cloud Run
+  # 8) Déployer / mettre à jour Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: "Deploy Cloud Run"
     entrypoint: "bash"
