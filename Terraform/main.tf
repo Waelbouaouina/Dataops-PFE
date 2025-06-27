@@ -6,12 +6,12 @@ provider "google" {
   project = var.project_id
   region  = var.region
 }
+
 provider "google-beta" {
   project = var.project_id
   region  = var.region
 }
 
-# Activate only needed APIs
 resource "google_project_service" "bigquery_api" {
   project = var.project_id
   service = "bigquery.googleapis.com"
@@ -34,7 +34,34 @@ resource "google_project_service" "composer_api" {
 }
 
 ##############################
-# Cloud Function Packaging & Deploy
+# Data sources – EXISTANTS
+##############################
+
+data "google_storage_bucket" "inventory_bucket" {
+  name = var.data_bucket
+}
+
+data "google_storage_bucket" "function_source_bucket" {
+  name = var.function_bucket
+}
+
+data "google_service_account" "dataloader_sa" {
+  project    = var.project_id
+  account_id = "dataloader-sa"
+}
+
+data "google_pubsub_topic" "csv_success_topic" {
+  project = var.project_id
+  name    = "csv-success-topic"
+}
+
+data "google_pubsub_topic" "csv_error_topic" {
+  project = var.project_id
+  name    = "csv-error-topic"
+}
+
+##############################
+# Cloud Function: packaging & deploy
 ##############################
 
 resource "google_storage_bucket_object" "csv_validator_zip" {
@@ -70,19 +97,19 @@ resource "google_cloudfunctions_function" "csv_validator" {
 ##############################
 
 resource "google_bigquery_table" "raw_table" {
-  dataset_id = data.google_bigquery_dataset.inventory_dataset.dataset_id
+  dataset_id = var.bq_dataset_id
   table_id   = "raw_table"
   schema     = file("${path.module}/schemas/raw_table.json")
 }
 
 resource "google_bigquery_table" "tds_table" {
-  dataset_id = data.google_bigquery_dataset.inventory_dataset.dataset_id
+  dataset_id = var.bq_dataset_id
   table_id   = "tds_table"
   schema     = file("${path.module}/schemas/tds_table.json")
 }
 
 resource "google_bigquery_table" "bds_table" {
-  dataset_id = data.google_bigquery_dataset.inventory_dataset.dataset_id
+  dataset_id = var.bq_dataset_id
   table_id   = "bds_table"
   schema     = file("${path.module}/schemas/bds_table.json")
 }
@@ -107,7 +134,7 @@ resource "google_cloud_run_service" "dataloader_service" {
         }
         env {
           name  = "BQ_DATASET"
-          value = data.google_bigquery_dataset.inventory_dataset.dataset_id
+          value = var.bq_dataset_id
         }
         env {
           name  = "BQ_TABLE"

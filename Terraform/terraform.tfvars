@@ -9,3 +9,4 @@ alert_emails = [
 
 data_bucket     = "tmt-storage-01"
 function_bucket = "tmt-storage-01"
+bq_dataset_id = "inventory_dataset"

@@ -29,3 +29,9 @@ variable "function_bucket" {
   description = "Bucket GCS existant pour stocker le zip de la Function"
   type        = string
 }
+
+variable "bq_dataset_id" {
+  description = "ID du dataset BigQuery existant"
+  type        = string
+}
+
