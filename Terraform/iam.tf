@@ -5,7 +5,7 @@
 resource "google_project_iam_member" "dataloader_sa_pubsub_publisher" {
   project = var.project_id
   role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
+  member  = "serviceAccount:${google_service_account.dataloader_sa.email}"
 }
 
 ##############################
@@ -17,7 +17,7 @@ resource "google_cloud_run_service_iam_member" "invoker" {
   location = var.region
   service  = google_cloud_run_service.dataloader_service.name
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
+  member   = "serviceAccount:${google_service_account.dataloader_sa.email}"
 }
 
 ##############################

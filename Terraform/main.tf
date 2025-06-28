@@ -1,5 +1,5 @@
 ##############################
-# Providers & APIs
+# Providers
 ##############################
 
 provider "google" {
@@ -12,46 +12,85 @@ provider "google-beta" {
   region  = var.region
 }
 
+
+##############################
+# Activer les APIs
+##############################
+
 resource "google_project_service" "bigquery_api" {
   project = var.project_id
   service = "bigquery.googleapis.com"
 }
+
 resource "google_project_service" "pubsub_api" {
   project = var.project_id
   service = "pubsub.googleapis.com"
 }
+
 resource "google_project_service" "run_api" {
   project = var.project_id
   service = "run.googleapis.com"
 }
+
 resource "google_project_service" "cloudfunctions_api" {
   project = var.project_id
   service = "cloudfunctions.googleapis.com"
 }
+
 resource "google_project_service" "composer_api" {
   project = var.project_id
   service = "composer.googleapis.com"
 }
 
+
+##############################
+# Data sources – EXISTANTS
+##############################
+
+data "google_storage_bucket" "inventory_bucket" {
+  name = var.data_bucket
+}
+
+data "google_storage_bucket" "function_source_bucket" {
+  name = var.function_bucket
+}
+
+data "google_pubsub_topic" "csv_success_topic" {
+  project = var.project_id
+  name    = "csv-success-topic"
+}
+
+data "google_pubsub_topic" "csv_error_topic" {
+  project = var.project_id
+  name    = "csv-error-topic"
+}
+
+
 ##############################
 # Cloud Function: packaging & deploy
 ##############################
 
+data "archive_file" "csv_validator_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../cloud_function"
+  output_path = "${path.module}/csv_validator.zip"
+}
+
 resource "google_storage_bucket_object" "csv_validator_zip" {
   name   = "csv_validator.zip"
   bucket = data.google_storage_bucket.function_source_bucket.name
-  source = "${path.module}/../cloud_function/csv_validator.zip"
+  source = data.archive_file.csv_validator_zip.output_path
 }
 
 resource "google_cloudfunctions_function" "csv_validator" {
-  name        = "csv-validator"
-  runtime     = "python39"
-  region      = var.region
-  entry_point = "validate_csv"
+  name                  = "csv-validator"
+  runtime               = "python39"
+  region                = var.region
+  entry_point           = "validate_csv"
+  service_account_email = google_service_account.dataloader_sa.email
 
   source_archive_bucket = data.google_storage_bucket.function_source_bucket.name
   source_archive_object = google_storage_bucket_object.csv_validator_zip.name
-  service_account_email = data.google_service_account.dataloader_sa.email
 
   event_trigger {
     event_type = "google.storage.object.finalize"
@@ -64,8 +103,31 @@ resource "google_cloudfunctions_function" "csv_validator" {
   }
 }
 
+
 ##############################
-# BigQuery Tables (to create)
+# Pub/Sub Subscription → Cloud Run
+##############################
+
+resource "google_pubsub_subscription" "invoke_dataloader" {
+  name    = "invoke-dataloader-sub"
+  project = var.project_id
+
+  # on ne passe plus par data.google_pubsub_topic, on écrit le full-path
+  topic = "projects/${var.project_id}/topics/csv-success-topic"
+
+  push_config {
+    push_endpoint = google_cloud_run_service.dataloader_service.status[0].url
+
+    oidc_token {
+      service_account_email = google_service_account.dataloader_sa.email
+    }
+  }
+}
+
+
+
+##############################
+# BigQuery Tables
 ##############################
 
 resource "google_bigquery_table" "raw_table" {
@@ -86,6 +148,7 @@ resource "google_bigquery_table" "bds_table" {
   schema     = file("${path.module}/schemas/bds_table.json")
 }
 
+
 ##############################
 # Cloud Run – Dataloader
 ##############################
@@ -96,10 +159,11 @@ resource "google_cloud_run_service" "dataloader_service" {
 
   template {
     spec {
-      service_account_name = data.google_service_account.dataloader_sa.email
+      service_account_name = google_service_account.dataloader_sa.email
 
       containers {
         image = "gcr.io/${var.project_id}/dataloader-image:latest"
+
         env {
           name  = "BUCKET_NAME"
           value = data.google_storage_bucket.inventory_bucket.name
@@ -122,6 +186,7 @@ resource "google_cloud_run_service" "dataloader_service" {
   }
 }
 
+
 ##############################
 # Cloud Composer v2 – Environment
 ##############################
@@ -133,13 +198,18 @@ resource "google_composer_environment" "composer_env" {
 
   config {
     node_config {
-      service_account = data.google_service_account.dataloader_sa.email
+      service_account = google_service_account.dataloader_sa.email
     }
     software_config {
       image_version = "composer-2.13.4-airflow-2.10.5"
     }
   }
 }
+
+
+##############################
+# Outputs
+##############################
 
 output "composer_dag_bucket" {
   value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
