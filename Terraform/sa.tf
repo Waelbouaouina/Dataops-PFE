@@ -1,12 +1,6 @@
-##############################
-# Service Account à importer
-##############################
+# sa.tf
 
-resource "google_service_account" "dataloader_sa" {
-  account_id   = "dataloader-sa"
-  display_name = "Dataloader Service Account"
-
-  lifecycle {
-    prevent_destroy = true
-  }
+# On ne crée plus la SA, on la consulte seule­ment
+data "google_service_account" "dataloader_sa" {
+  account_id = "dataloader-sa"
 }

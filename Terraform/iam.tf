@@ -1,33 +1,26 @@
-##############################
-# IAM – Project-level Pub/Sub Publisher
-##############################
+// iam.tf
 
-resource "google_project_iam_member" "dataloader_sa_pubsub_publisher" {
+// On suppose que var.project_id est déjà défini dans variables.tf
+// et que sa.tf contient bien la data source pour dataloader_sa.
+
+locals {
+  sa_email = data.google_service_account.dataloader_sa.email
+}
+
+resource "google_project_iam_member" "sa_pubsub_publisher" {
   project = var.project_id
   role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${google_service_account.dataloader_sa.email}"
+  member  = "serviceAccount:${local.sa_email}"
 }
 
-##############################
-# IAM – Cloud Run Invoker
-##############################
-
-resource "google_cloud_run_service_iam_member" "invoker" {
-  project  = var.project_id
-  location = var.region
-  service  = google_cloud_run_service.dataloader_service.name
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.dataloader_sa.email}"
-}
-
-##############################
-# IAM – Composer Service Agent Extension
-##############################
-
-data "google_project" "current" {}
-
-resource "google_project_iam_member" "composer_service_agent_ext" {
+resource "google_project_iam_member" "sa_bigquery_data_editor" {
   project = var.project_id
-  role    = "roles/composer.ServiceAgentV2Ext"
-  member  = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
+  role    = "roles/bigquery.dataEditor"
+  member  = "serviceAccount:${local.sa_email}"
+}
+
+resource "google_project_iam_member" "sa_storage_object_viewer" {
+  project = var.project_id
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${local.sa_email}"
 }

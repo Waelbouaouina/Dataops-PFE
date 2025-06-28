@@ -87,7 +87,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
   runtime               = "python39"
   region                = var.region
   entry_point           = "validate_csv"
-  service_account_email = google_service_account.dataloader_sa.email
+  service_account_email = data.google_service_account.dataloader_sa.email
 
   source_archive_bucket = data.google_storage_bucket.function_source_bucket.name
   source_archive_object = google_storage_bucket_object.csv_validator_zip.name
@@ -159,7 +159,7 @@ resource "google_cloud_run_service" "dataloader_service" {
 
   template {
     spec {
-      service_account_name = google_service_account.dataloader_sa.email
+      service_account_name = data.google_service_account.dataloader_sa.email
 
       containers {
         image = "gcr.io/${var.project_id}/dataloader-image:latest"
@@ -198,7 +198,7 @@ resource "google_composer_environment" "composer_env" {
 
   config {
     node_config {
-      service_account = google_service_account.dataloader_sa.email
+      service_account = data.google_service_account.dataloader_sa.email
     }
     software_config {
       image_version = "composer-2.13.4-airflow-2.10.5"
