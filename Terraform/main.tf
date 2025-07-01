@@ -1,19 +1,4 @@
 ##############################
-# Providers
-##############################
-
-provider "google" {
-  project = var.project_id
-  region  = var.region
-}
-
-provider "google-beta" {
-  project = var.project_id
-  region  = var.region
-}
-
-
-##############################
 # Activer les APIs
 ##############################
 
@@ -40,29 +25,6 @@ resource "google_project_service" "cloudfunctions_api" {
 resource "google_project_service" "composer_api" {
   project = var.project_id
   service = "composer.googleapis.com"
-}
-
-
-##############################
-# Data sources – EXISTANTS
-##############################
-
-data "google_storage_bucket" "inventory_bucket" {
-  name = var.data_bucket
-}
-
-data "google_storage_bucket" "function_source_bucket" {
-  name = var.function_bucket
-}
-
-data "google_pubsub_topic" "csv_success_topic" {
-  project = var.project_id
-  name    = "csv-success-topic"
-}
-
-data "google_pubsub_topic" "csv_error_topic" {
-  project = var.project_id
-  name    = "csv-error-topic"
 }
 
 
@@ -111,9 +73,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
 resource "google_pubsub_subscription" "invoke_dataloader" {
   name    = "invoke-dataloader-sub"
   project = var.project_id
-
-  # on ne passe plus par data.google_pubsub_topic, on écrit le full-path
-  topic = "projects/${var.project_id}/topics/csv-success-topic"
+  topic   = "projects/${var.project_id}/topics/csv-success-topic"
 
   push_config {
     push_endpoint = google_cloud_run_service.dataloader_service.status[0].url
@@ -123,7 +83,6 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
     }
   }
 }
-
 
 
 ##############################
