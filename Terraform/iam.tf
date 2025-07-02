@@ -1,60 +1,51 @@
-# 1) droits runtime pour dataloader-sa
-resource "google_project_iam_member" "sa_storage_viewer" {
+######################################
+# 1) Bindings projet pour Terraform
+######################################
+
+resource "google_project_iam_binding" "tf_project_roles" {
+  project = var.project_id
+  role    = "roles/editor"
+
+  members = [
+    "user:${var.terraform_user_email}"
+  ]
+}
+
+######################################
+# 2) Bindings projet pour dataloader-sa runtime
+######################################
+
+resource "google_project_iam_binding" "sa_runtime_roles" {
   project = var.project_id
   role    = "roles/storage.objectViewer"
-  member  = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
+
+  members = [
+    "serviceAccount:${var.dataloader_sa_email}"
+  ]
 }
 
-resource "google_project_iam_member" "sa_pubsub_publisher" {
+resource "google_project_iam_binding" "sa_pubsub" {
   project = var.project_id
   role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
+
+  members = [
+    "serviceAccount:${var.dataloader_sa_email}"
+  ]
 }
 
-resource "google_project_iam_member" "sa_bigquery_dataowner" {
+resource "google_project_iam_binding" "sa_bigquery" {
   project = var.project_id
   role    = "roles/bigquery.dataOwner"
-  member  = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
+
+  members = [
+    "serviceAccount:${var.dataloader_sa_email}"
+  ]
 }
 
-# 2) droits Terraform pour CRUD sur tout
-resource "google_project_iam_member" "tf_bigquery_admin" {
-  project = var.project_id
-  role    = "roles/bigquery.admin"
-  member  = "user:${var.terraform_user_email}"
-}
+######################################
+# 3) SA IAM Members pour actAs & TokenCreator
+######################################
 
-resource "google_project_iam_member" "tf_storage_admin" {
-  project = var.project_id
-  role    = "roles/storage.admin"
-  member  = "user:${var.terraform_user_email}"
-}
-
-resource "google_project_iam_member" "tf_pubsub_admin" {
-  project = var.project_id
-  role    = "roles/pubsub.admin"
-  member  = "user:${var.terraform_user_email}"
-}
-
-resource "google_project_iam_member" "tf_cloudfunctions_admin" {
-  project = var.project_id
-  role    = "roles/cloudfunctions.admin"
-  member  = "user:${var.terraform_user_email}"
-}
-
-resource "google_project_iam_member" "tf_run_admin" {
-  project = var.project_id
-  role    = "roles/run.admin"
-  member  = "user:${var.terraform_user_email}"
-}
-
-resource "google_project_iam_member" "tf_composer_admin" {
-  project = var.project_id
-  role    = "roles/composer.admin"
-  member  = "user:${var.terraform_user_email}"
-}
-
-# 3) Autoriser Terraform à actAs et getAccessToken sur dataloader-sa
 resource "google_service_account_iam_member" "tf_act_as_dataloader" {
   service_account_id = data.google_service_account.dataloader_sa.name
   role               = "roles/iam.serviceAccountUser"
