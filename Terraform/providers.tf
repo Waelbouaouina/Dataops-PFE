@@ -1,12 +1,12 @@
+terraform {
+  required_version = ">= 1.1.0"
+  required_providers {
+    google      = { source = "hashicorp/google",      version = ">= 4.0.0" }
+    google-beta = { source = "hashicorp/google-beta", version = ">= 4.0.0" }
+  }
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
-}
-
-# Ce provider va exécuter les actions "as" dataloader-sa
-provider "google" {
-  alias                        = "dataloader"
-  project                      = var.project_id
-  region                       = var.region
-  impersonate_service_account  = var.dataloader_sa_email
 }
