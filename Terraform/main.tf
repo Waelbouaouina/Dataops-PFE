@@ -27,7 +27,6 @@ resource "google_project_service" "composer_api" {
   service = "composer.googleapis.com"
 }
 
-
 ##############################
 # Cloud Function: packaging & deploy
 ##############################
@@ -65,7 +64,6 @@ resource "google_cloudfunctions_function" "csv_validator" {
   }
 }
 
-
 ##############################
 # Pub/Sub Subscription → Cloud Run
 ##############################
@@ -83,7 +81,6 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
     }
   }
 }
-
 
 ##############################
 # BigQuery Tables
@@ -106,7 +103,6 @@ resource "google_bigquery_table" "bds_table" {
   table_id   = "bds_table"
   schema     = file("${path.module}/schemas/bds_table.json")
 }
-
 
 ##############################
 # Cloud Run – Dataloader
@@ -145,7 +141,6 @@ resource "google_cloud_run_service" "dataloader_service" {
   }
 }
 
-
 ##############################
 # Cloud Composer v2 – Environment
 ##############################
@@ -164,7 +159,6 @@ resource "google_composer_environment" "composer_env" {
     }
   }
 }
-
 
 ##############################
 # Outputs
