@@ -1,7 +1,3 @@
-##############################
-# Import des ressources existantes
-##############################
-
 data "google_storage_bucket" "inventory_bucket" {
   name = var.data_bucket
 }
@@ -16,3 +12,14 @@ data "google_service_account" "dataloader_sa" {
 }
 
 data "google_project" "current" {}
+
+# Tes topics existent déjà, on les importe
+data "google_pubsub_topic" "csv_success_topic" {
+  project = var.project_id
+  name    = "csv-success-topic"
+}
+
+data "google_pubsub_topic" "csv_error_topic" {
+  project = var.project_id
+  name    = "csv-error-topic"
+}

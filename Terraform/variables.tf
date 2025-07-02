@@ -1,39 +1,39 @@
 variable "project_id" {
-  description = "ID du projet GCP"
   type        = string
+  description = "ID du projet GCP"
 }
 
 variable "region" {
-  description = "Région GCP (ex: europe-west1)"
   type        = string
+  description = "Région GCP (ex: europe-west1)"
 }
 
 variable "location" {
-  description = "Même que region pour Composer"
   type        = string
+  description = "Même que region pour Composer"
 }
 
 variable "data_bucket" {
-  description = "Bucket GCS existant où arrivent les CSV"
   type        = string
+  description = "Nom du bucket GCS où arrivent les CSV"
 }
 
 variable "function_bucket" {
-  description = "Bucket GCS pour stocker les zips de Functions"
   type        = string
+  description = "Nom du bucket pour stocker les zips de Cloud Functions"
 }
 
 variable "bq_dataset_id" {
-  description = "ID du dataset BigQuery à créer"
   type        = string
+  description = "ID du dataset BigQuery à créer"
 }
 
 variable "terraform_user_email" {
-  description = "Email du compte ou user qui exécute Terraform"
   type        = string
+  description = "Ton user ou SA exécutant Terraform (email)"
 }
 
 variable "dataloader_sa_email" {
-  description = "Email du service account runtime dataloader-sa"
   type        = string
+  description = "Email du service account dataloader-sa (runtime)"
 }
