@@ -12,3 +12,4 @@ function_bucket = "tmt-storage-01"
 bq_dataset_id   = "inventory_dataset"
 
 dataloader_sa_email = "dataloader-sa@tmtrackdev01.iam.gserviceaccount.com"
+terraform_sa_email = "wael.bouaouina@gmail.com"

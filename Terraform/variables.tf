@@ -40,6 +40,7 @@ variable "bq_dataset_id" {
 variable "terraform_sa_email" {
   description = "Email du compte (user ou service account) exécutant Terraform"
   type        = string
+  default     = "wael.bouaouina@gmail.com"
 }
 
 variable "dataloader_sa_email" {
