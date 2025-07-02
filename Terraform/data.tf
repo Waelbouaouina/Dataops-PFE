@@ -30,7 +30,7 @@ data "google_service_account" "dataloader_sa" {
 }
 
 ##############################
-# Numéro de projet (pour Composer)
+# Numéro de projet (pour Composer Service Agent)
 ##############################
 
 data "google_project" "current" {}

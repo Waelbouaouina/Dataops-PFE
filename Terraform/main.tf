@@ -27,7 +27,6 @@ resource "google_project_service" "composer_api" {
   service = "composer.googleapis.com"
 }
 
-
 ##############################
 # BigQuery Dataset & Tables
 # exécutés AS dataloader-sa
@@ -60,7 +59,6 @@ resource "google_bigquery_table" "bds_table" {
   table_id   = "bds_table"
   schema     = file("${path.module}/schemas/bds_table.json")
 }
-
 
 ##############################
 # Cloud Function packaging & deploy
@@ -102,7 +100,6 @@ resource "google_cloudfunctions_function" "csv_validator" {
   }
 }
 
-
 ##############################
 # Pub/Sub Subscription → Cloud Run
 # exécutés AS dataloader-sa
@@ -122,7 +119,6 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
     }
   }
 }
-
 
 ##############################
 # Cloud Run – Dataloader
@@ -163,7 +159,6 @@ resource "google_cloud_run_service" "dataloader_service" {
   }
 }
 
-
 ##############################
 # Cloud Composer v2 – Environment
 # exécutés AS dataloader-sa
@@ -185,12 +180,11 @@ resource "google_composer_environment" "composer_env" {
   }
 }
 
-
 ##############################
 # Outputs
 ##############################
 
 output "composer_dag_bucket" {
-  description = "Bucket GCS pour déposer les DAGs"
+  description = "Bucket pour déposer les DAGs"
   value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
 }
