@@ -9,7 +9,7 @@ variable "region" {
 }
 
 variable "location" {
-  description = "Même valeur que region pour Composer"
+  description = "Même que region pour Composer"
   type        = string
 }
 
@@ -19,7 +19,7 @@ variable "data_bucket" {
 }
 
 variable "function_bucket" {
-  description = "Bucket GCS pour stocker les zips de CF"
+  description = "Bucket GCS pour stocker les zips de Functions"
   type        = string
 }
 
@@ -28,12 +28,12 @@ variable "bq_dataset_id" {
   type        = string
 }
 
-variable "terraform_sa_email" {
-  description = "Email du compte/user qui exécute Terraform"
+variable "terraform_user_email" {
+  description = "Email du compte ou user qui exécute Terraform"
   type        = string
 }
 
 variable "dataloader_sa_email" {
-  description = "Email du service account dataloader (runtime)"
+  description = "Email du service account runtime dataloader-sa"
   type        = string
 }

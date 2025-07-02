@@ -1,5 +1,5 @@
 ##############################
-# Activer les APIs nécessaires
+# Activer les APIs
 ##############################
 
 resource "google_project_service" "bigquery_api" {
@@ -90,7 +90,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
   runtime               = "python39"
   region                = var.region
   entry_point           = "validate_csv"
-  service_account_email = data.google_service_account.dataloader_sa.email
+  service_account_email = var.dataloader_sa_email
 
   source_archive_bucket = data.google_storage_bucket.function_source_bucket.name
   source_archive_object = google_storage_bucket_object.csv_validator_zip.name
@@ -119,7 +119,7 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
     push_endpoint = google_cloud_run_service.dataloader_service.status[0].url
 
     oidc_token {
-      service_account_email = data.google_service_account.dataloader_sa.email
+      service_account_email = var.dataloader_sa_email
     }
   }
 }
@@ -134,7 +134,7 @@ resource "google_cloud_run_service" "dataloader_service" {
 
   template {
     spec {
-      service_account_name = data.google_service_account.dataloader_sa.email
+      service_account_name = var.dataloader_sa_email
 
       containers {
         image = "gcr.io/${var.project_id}/dataloader-image:latest"
@@ -172,7 +172,7 @@ resource "google_composer_environment" "composer_env" {
 
   config {
     node_config {
-      service_account = data.google_service_account.dataloader_sa.email
+      service_account = var.dataloader_sa_email
     }
     software_config {
       image_version = "composer-2.13.4-airflow-2.10.5"
@@ -185,6 +185,6 @@ resource "google_composer_environment" "composer_env" {
 ##############################
 
 output "composer_dag_bucket" {
-  value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
   description = "Bucket GCS pour déposer les DAGs"
+  value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
 }
