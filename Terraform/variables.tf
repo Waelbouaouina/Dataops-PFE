@@ -19,7 +19,7 @@ variable "data_bucket" {
 }
 
 variable "function_bucket" {
-  description = "Bucket GCS pour stocker les zips de Functions"
+  description = "Bucket GCS pour stocker les zips de CF"
   type        = string
 }
 
@@ -34,6 +34,6 @@ variable "terraform_user_email" {
 }
 
 variable "dataloader_sa_email" {
-  description = "Email du service account dataloader-sa"
+  description = "Email du service account runtime dataloader-sa"
   type        = string
 }
