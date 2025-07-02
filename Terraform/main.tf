@@ -28,21 +28,7 @@ resource "google_project_service" "composer_api" {
 }
 
 ##################################
-# 2) Import des topics existants
-##################################
-
-data "google_pubsub_topic" "csv_success_topic" {
-  project = var.project_id
-  name    = "csv-success-topic"
-}
-
-data "google_pubsub_topic" "csv_error_topic" {
-  project = var.project_id
-  name    = "csv-error-topic"
-}
-
-##################################
-# 3) BigQuery Dataset & Tables
+# 2) BigQuery Dataset & Tables
 ##################################
 
 resource "google_bigquery_dataset" "inventory_dataset" {
@@ -86,7 +72,7 @@ resource "google_bigquery_table" "bds_table" {
 }
 
 ##################################
-# 4) Packaging & déploiement CF
+# 3) Packaging & déploiement CF
 ##################################
 
 data "archive_file" "csv_validator_zip" {
@@ -132,7 +118,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
 }
 
 ##################################
-# 5) Pub/Sub Subscription → Cloud Run
+# 4) Pub/Sub Subscription → Cloud Run
 ##################################
 
 resource "google_pubsub_subscription" "invoke_dataloader" {
@@ -154,7 +140,7 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
 }
 
 ##################################
-# 6) Cloud Run – Dataloader
+# 5) Cloud Run – Dataloader
 ##################################
 
 resource "google_cloud_run_service" "dataloader_service" {
@@ -196,7 +182,7 @@ resource "google_cloud_run_service" "dataloader_service" {
 }
 
 ##################################
-# 7) Cloud Composer v2 – Environment
+# 6) Cloud Composer v2 – Environment
 ##################################
 
 resource "google_composer_environment" "composer_env" {
@@ -220,7 +206,7 @@ resource "google_composer_environment" "composer_env" {
 }
 
 ##################################
-# 8) Outputs
+# 7) Outputs
 ##################################
 
 output "composer_dag_bucket" {

@@ -19,6 +19,7 @@ data "google_project" "current" {
   project_id = var.project_id
 }
 
+# Import des topics Pub/Sub existants (plus de duplication)
 data "google_pubsub_topic" "csv_success_topic" {
   project = var.project_id
   name    = "csv-success-topic"
