@@ -18,7 +18,7 @@ substitutions:
   _ERROR_TOPIC:          "projects/$_PROJECT_ID/topics/csv-error-topic"
 
 steps:
-# 0) APIs
+# 0) Enable APIs
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Enable APIs
   entrypoint: bash
@@ -35,7 +35,7 @@ steps:
         cloudfunctions.googleapis.com \
         run.googleapis.com
 
-# 1) Git branch par défaut
+# 1) Git Config
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Git Config
   entrypoint: bash
@@ -53,7 +53,7 @@ steps:
         -backend-config="bucket=${_PROJECT_ID}-tfstate" \
         -backend-config="prefix=terraform/state"
 
-# 3) Passe IAM ciblée (binding IAM + actAs/datacreator)
+# 3) IAM Apply (bindings + actAs/token)
 - name: hashicorp/terraform:light
   id: Terraform IAM Apply
   entrypoint: sh
@@ -82,7 +82,7 @@ steps:
       cd ${_TF_DIR}
       terraform validate
 
-# 5) Passe complète (infrastructure)
+# 5) Terraform Apply (infra complète)
 - name: hashicorp/terraform:light
   id: Terraform Apply
   entrypoint: sh
@@ -113,11 +113,10 @@ steps:
         --image="${_IMAGE}" \
         --region="${_REGION}" \
         --platform=managed \
-        --service-account="${_PROJECT_ID}@appspot.gserviceaccount.com" \
         --service-account="dataloader-sa@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --allow-unauthenticated
 
-# 8) Deploy Cloud Function de validation
+# 8) Deploy Cloud Function
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy CSV Validator
   entrypoint: bash
@@ -137,7 +136,7 @@ steps:
         --entry-point=${_FUNCTION_ENTRY} \
         --set-env-vars SUCCESS_TOPIC=${_SUCCESS_TOPIC},ERROR_TOPIC=${_ERROR_TOPIC}
 
-# 9) Upload CSV de test
+# 9) Test CSV Upload
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Upload CSV
   entrypoint: bash
