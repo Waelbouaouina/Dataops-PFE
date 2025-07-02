@@ -1,5 +1,5 @@
 ##############################
-# Data sources – EXISTANTS
+# Buckets & topics existants
 ##############################
 
 data "google_storage_bucket" "inventory_bucket" {
@@ -18,4 +18,13 @@ data "google_pubsub_topic" "csv_success_topic" {
 data "google_pubsub_topic" "csv_error_topic" {
   project = var.project_id
   name    = "csv-error-topic"
+}
+
+##############################
+# Lire le Service Account dataloader-sa (déjà créé manuellement)
+##############################
+
+data "google_service_account" "dataloader_sa" {
+  account_id = "dataloader-sa"
+  project    = var.project_id
 }

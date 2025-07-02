@@ -4,18 +4,13 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Région (ex: europe-west1)"
+  description = "Région (ex : europe-west1)"
   type        = string
 }
 
 variable "location" {
   description = "Même valeur que region, pour Composer"
   type        = string
-}
-
-variable "alert_emails" {
-  description = "Liste d’emails pour alertes"
-  type        = list(string)
 }
 
 variable "data_bucket" {
@@ -29,7 +24,7 @@ variable "function_bucket" {
 }
 
 variable "bq_dataset_id" {
-  description = "Nom du dataset BigQuery"
+  description = "ID du dataset BigQuery"
   type        = string
 }
 
