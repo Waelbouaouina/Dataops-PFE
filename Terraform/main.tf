@@ -1,4 +1,7 @@
+##############################
 # Activer les APIs
+##############################
+
 resource "google_project_service" "bigquery_api" {
   project = var.project_id
   service = "bigquery.googleapis.com"
@@ -24,7 +27,12 @@ resource "google_project_service" "composer_api" {
   service = "composer.googleapis.com"
 }
 
-# BigQuery Dataset & Tables (exécutés as dataloader-sa)
+
+##############################
+# BigQuery Dataset & Tables
+# exécutés AS dataloader-sa
+##############################
+
 resource "google_bigquery_dataset" "inventory_dataset" {
   provider   = google.dataloader
   project    = var.project_id
@@ -53,7 +61,12 @@ resource "google_bigquery_table" "bds_table" {
   schema     = file("${path.module}/schemas/bds_table.json")
 }
 
-# Cloud Function packaging + deploy
+
+##############################
+# Cloud Function packaging & deploy
+# exécutés AS dataloader-sa
+##############################
+
 data "archive_file" "csv_validator_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../cloud_function"
@@ -89,7 +102,12 @@ resource "google_cloudfunctions_function" "csv_validator" {
   }
 }
 
-# Pub/Sub → Cloud Run
+
+##############################
+# Pub/Sub Subscription → Cloud Run
+# exécutés AS dataloader-sa
+##############################
+
 resource "google_pubsub_subscription" "invoke_dataloader" {
   provider = google.dataloader
   name     = "invoke-dataloader-sub"
@@ -105,7 +123,12 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
   }
 }
 
+
+##############################
 # Cloud Run – Dataloader
+# exécutés AS dataloader-sa
+##############################
+
 resource "google_cloud_run_service" "dataloader_service" {
   provider = google.dataloader
   name     = "dataloader-service"
@@ -140,7 +163,12 @@ resource "google_cloud_run_service" "dataloader_service" {
   }
 }
 
+
+##############################
 # Cloud Composer v2 – Environment
+# exécutés AS dataloader-sa
+##############################
+
 resource "google_composer_environment" "composer_env" {
   provider = google.dataloader
   project  = var.project_id
@@ -157,8 +185,12 @@ resource "google_composer_environment" "composer_env" {
   }
 }
 
+
+##############################
 # Outputs
+##############################
+
 output "composer_dag_bucket" {
-  description = "Bucket pour déposer les DAGs"
+  description = "Bucket GCS pour déposer les DAGs"
   value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
 }

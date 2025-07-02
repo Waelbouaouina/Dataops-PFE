@@ -1,3 +1,7 @@
+##############################
+# Buckets & topics existants
+##############################
+
 data "google_storage_bucket" "inventory_bucket" {
   name = var.data_bucket
 }
@@ -16,9 +20,17 @@ data "google_pubsub_topic" "csv_error_topic" {
   name    = "csv-error-topic"
 }
 
+##############################
+# Import du service account dataloader-sa
+##############################
+
 data "google_service_account" "dataloader_sa" {
   account_id = "dataloader-sa"
   project    = var.project_id
 }
+
+##############################
+# Numéro de projet (pour Composer)
+##############################
 
 data "google_project" "current" {}

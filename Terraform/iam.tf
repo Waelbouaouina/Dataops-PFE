@@ -1,13 +1,7 @@
-// 1) Data import SA & projet
-data "google_service_account" "dataloader_sa" {
-  account_id = "dataloader-sa"
-  project    = var.project_id
-}
+##############################
+# IAM bindings pour dataloader-sa
+##############################
 
-data "google_project" "current" {}
-
-
-// 2) Rôles Projet pour dataloader-sa
 resource "google_project_iam_member" "sa_bigquery_data_owner" {
   project = var.project_id
   role    = "roles/bigquery.dataOwner"
@@ -26,7 +20,6 @@ resource "google_project_iam_member" "sa_pubsub_publisher" {
   member  = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
 }
 
-// 3) Composer SA extensions & impersionation
 resource "google_project_iam_member" "composer_service_agent_ext" {
   project = var.project_id
   role    = "roles/composer.ServiceAgentV2Ext"
@@ -45,8 +38,10 @@ resource "google_service_account_iam_member" "composer_token_creator" {
   member             = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
 }
 
+##############################
+# IAM bindings pour TON Terraform
+##############################
 
-// 4) Rôles Projet pour TON Terraform (user)
 resource "google_project_iam_member" "tf_bigquery_admin" {
   project = var.project_id
   role    = "roles/bigquery.admin"
@@ -77,7 +72,6 @@ resource "google_project_iam_member" "tf_pubsub_admin" {
   member  = "user:${var.terraform_sa_email}"
 }
 
-// 5) Impersonation & TokenCreator pour TON Terraform
 resource "google_service_account_iam_member" "tf_act_as_dataloader" {
   service_account_id = data.google_service_account.dataloader_sa.name
   role               = "roles/iam.serviceAccountUser"
