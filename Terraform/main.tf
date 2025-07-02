@@ -1,5 +1,5 @@
 ##############################
-# Activer les APIs
+# Activer les APIs nécessaires
 ##############################
 
 resource "google_project_service" "bigquery_api" {
@@ -27,7 +27,6 @@ resource "google_project_service" "composer_api" {
   service = "composer.googleapis.com"
 }
 
-
 ##############################
 # Création des topics Pub/Sub
 ##############################
@@ -41,7 +40,6 @@ resource "google_pubsub_topic" "csv_error_topic" {
   project = var.project_id
   name    = "csv-error-topic"
 }
-
 
 ##############################
 # BigQuery Dataset & Tables
@@ -71,7 +69,6 @@ resource "google_bigquery_table" "bds_table" {
   schema     = file("${path.module}/schemas/bds_table.json")
 }
 
-
 ##############################
 # Cloud Function packaging & deploy
 ##############################
@@ -83,8 +80,8 @@ data "archive_file" "csv_validator_zip" {
 }
 
 resource "google_storage_bucket_object" "csv_validator_zip" {
-  name   = "csv_validator.zip"
   bucket = data.google_storage_bucket.function_source_bucket.name
+  name   = "csv_validator.zip"
   source = data.archive_file.csv_validator_zip.output_path
 }
 
@@ -109,9 +106,8 @@ resource "google_cloudfunctions_function" "csv_validator" {
   }
 }
 
-
 ##############################
-# Pub/Sub → Cloud Run
+# Pub/Sub Subscription → Cloud Run
 ##############################
 
 resource "google_pubsub_subscription" "invoke_dataloader" {
@@ -127,7 +123,6 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
     }
   }
 }
-
 
 ##############################
 # Cloud Run – Dataloader
@@ -166,7 +161,6 @@ resource "google_cloud_run_service" "dataloader_service" {
   }
 }
 
-
 ##############################
 # Cloud Composer v2 – Environment
 ##############################
@@ -186,12 +180,11 @@ resource "google_composer_environment" "composer_env" {
   }
 }
 
-
 ##############################
 # Outputs
 ##############################
 
 output "composer_dag_bucket" {
-  description = "Bucket GCS pour déposer les DAGs"
   value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
+  description = "Bucket GCS pour déposer les DAGs"
 }

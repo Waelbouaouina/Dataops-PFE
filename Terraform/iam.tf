@@ -1,4 +1,7 @@
-# 1) Permissions pour dataloader-sa
+##############################
+# 1) Permissions pour dataloader-sa (runtime)
+##############################
+
 resource "google_project_iam_member" "sa_bigquery_data_owner" {
   project = var.project_id
   role    = "roles/bigquery.dataOwner"
@@ -17,27 +20,10 @@ resource "google_project_iam_member" "sa_pubsub_publisher" {
   member  = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
 }
 
-# Composer Service Agent Extension
-resource "google_project_iam_member" "composer_service_agent_ext" {
-  project = var.project_id
-  role    = "roles/composer.ServiceAgentV2Ext"
-  member  = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
-}
+##############################
+# 2) Permissions pour TON Terraform
+##############################
 
-# Composer peut utiliser dataloader-sa pour exécuter les workers
-resource "google_service_account_iam_member" "composer_act_as_dataloader" {
-  service_account_id = data.google_service_account.dataloader_sa.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
-}
-
-resource "google_service_account_iam_member" "composer_token_creator" {
-  service_account_id = data.google_service_account.dataloader_sa.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
-}
-
-# 2) Permissions pour TON Terraform (user)
 resource "google_project_iam_member" "tf_bigquery_admin" {
   project = var.project_id
   role    = "roles/bigquery.admin"
@@ -68,7 +54,6 @@ resource "google_project_iam_member" "tf_pubsub_admin" {
   member  = "user:${var.terraform_sa_email}"
 }
 
-# Pour que tu puisses vérifier et déboguer le service account dataloader-sa si besoin
 resource "google_service_account_iam_member" "tf_act_as_dataloader" {
   service_account_id = data.google_service_account.dataloader_sa.name
   role               = "roles/iam.serviceAccountUser"

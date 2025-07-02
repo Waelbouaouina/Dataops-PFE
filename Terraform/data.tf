@@ -1,5 +1,5 @@
 ##############################
-# Buckets & service account existants
+# Import des ressources existantes
 ##############################
 
 data "google_storage_bucket" "inventory_bucket" {

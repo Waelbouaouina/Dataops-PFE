@@ -4,7 +4,7 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Région (ex: europe-west1)"
+  description = "Région GCP (ex: europe-west1)"
   type        = string
 }
 
@@ -14,26 +14,26 @@ variable "location" {
 }
 
 variable "data_bucket" {
-  description = "Bucket GCS existant pour les CSV"
+  description = "Bucket GCS existant où arrivent les CSV"
   type        = string
 }
 
 variable "function_bucket" {
-  description = "Bucket GCS pour stocker les archives de Functions"
+  description = "Bucket GCS pour stocker les zips de CF"
   type        = string
 }
 
 variable "bq_dataset_id" {
-  description = "ID du dataset BigQuery"
+  description = "ID du dataset BigQuery à créer"
   type        = string
 }
 
 variable "terraform_sa_email" {
-  description = "Email du compte (user ou SA) exécutant Terraform"
+  description = "Email du compte/user qui exécute Terraform"
   type        = string
 }
 
 variable "dataloader_sa_email" {
-  description = "Email du service account dataloader (déjà créé)"
+  description = "Email du service account dataloader (runtime)"
   type        = string
 }
