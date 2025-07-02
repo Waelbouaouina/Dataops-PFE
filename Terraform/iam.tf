@@ -1,65 +1,56 @@
-##############################
-# Récupère le numéro de projet
-##############################
+# Numéro de projet pour composer SA
 data "google_project" "current" {}
 
-##############################
-# Création du Service Account dataloader-sa
-##############################
-resource "google_service_account" "dataloader_sa" {
-  account_id   = "dataloader-sa"
-  display_name = "Dataloader Service Account"
-}
-
-##############################
-# IAM bindings pour dataloader-sa
-# -> BIGQUERY : création de tables
-# -> STORAGE : lecture d’objets
-# -> PUBSUB  : publication
-# -> COMPOSER Service Agent Extension
-##############################
+#-----------------------------------------------------------------------------#
+# 1) IAM pour dataloader-sa (Importé)
+#    - BigQuery : création des tables
+#    - Storage : lecture des objets
+#    - Pub/Sub  : publication
+#    - Composer Service Agent Extension
+#    - Composer peut "ActAs" dataloader-sa
+#-----------------------------------------------------------------------------#
 
 resource "google_project_iam_member" "sa_bigquery_data_owner" {
   project = var.project_id
   role    = "roles/bigquery.dataOwner"
-  member  = "serviceAccount:${google_service_account.dataloader_sa.email}"
+  member  = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
 }
 
 resource "google_project_iam_member" "sa_storage_object_viewer" {
   project = var.project_id
   role    = "roles/storage.objectViewer"
-  member  = "serviceAccount:${google_service_account.dataloader_sa.email}"
+  member  = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
 }
 
 resource "google_project_iam_member" "sa_pubsub_publisher" {
   project = var.project_id
   role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${google_service_account.dataloader_sa.email}"
+  member  = "serviceAccount:${data.google_service_account.dataloader_sa.email}"
 }
 
+# Composer Service Agent v2 Extensions
 resource "google_project_iam_member" "composer_service_agent_ext" {
   project = var.project_id
   role    = "roles/composer.ServiceAgentV2Ext"
   member  = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
 }
 
-##############################
-# Permet à Composer d’agir AS dataloader-sa
-##############################
-resource "google_service_account_iam_member" "dataloader_sa_act_as_by_composer" {
-  service_account_id = google_service_account.dataloader_sa.name
+# Composer doit pouvoir impersonner dataloader-sa
+resource "google_service_account_iam_member" "composer_act_as_dataloader" {
+  service_account_id = data.google_service_account.dataloader_sa.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
 }
 
-##############################
-# IAM bindings pour TON user/SA Terraform
-# -> BIGQUERY : création de tables
-# -> STORAGE  : création d’objets
-# -> CLOUD FUNCTIONS : déploiement
-# -> CLOUD RUN       : déploiement
-# -> PUBSUB           : admin
-##############################
+#-----------------------------------------------------------------------------#
+# 2) IAM pour TON Terraform (user ou SA)
+#    - BigQuery admin
+#    - Storage admin
+#    - CloudFunctions admin
+#    - Cloud Run admin
+#    - Pub/Sub admin
+#    - IAM Service Account User (pour actAs dataloader-sa)
+#-----------------------------------------------------------------------------#
 
 resource "google_project_iam_member" "tf_bigquery_admin" {
   project = var.project_id
@@ -91,11 +82,9 @@ resource "google_project_iam_member" "tf_pubsub_admin" {
   member  = "user:${var.terraform_sa_email}"
 }
 
-##############################
-# Permet à TON Terraform d’agir AS dataloader-sa
-##############################
-resource "google_service_account_iam_member" "dataloader_sa_act_as_by_tf" {
-  service_account_id = google_service_account.dataloader_sa.name
+# Terraform doit aussi pouvoir actAs dataloader-sa
+resource "google_service_account_iam_member" "tf_act_as_dataloader" {
+  service_account_id = data.google_service_account.dataloader_sa.name
   role               = "roles/iam.serviceAccountUser"
   member             = "user:${var.terraform_sa_email}"
 }

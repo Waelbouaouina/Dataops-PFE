@@ -28,7 +28,7 @@ resource "google_project_service" "composer_api" {
 }
 
 ##############################
-# BigQuery Dataset MANQUANT
+# BigQuery Dataset
 ##############################
 
 resource "google_bigquery_dataset" "inventory_dataset" {
@@ -60,7 +60,7 @@ resource "google_bigquery_table" "bds_table" {
 }
 
 ##############################
-# Cloud Function: packaging & déploiement
+# Cloud Function: packaging & deploy
 ##############################
 
 data "archive_file" "csv_validator_zip" {
@@ -97,7 +97,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
 }
 
 ##############################
-# Pub/Sub → Cloud Run
+# Pub/Sub Subscription → Cloud Run
 ##############################
 
 resource "google_pubsub_subscription" "invoke_dataloader" {

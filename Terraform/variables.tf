@@ -14,12 +14,12 @@ variable "location" {
 }
 
 variable "data_bucket" {
-  description = "Bucket existant pour les données brutes"
+  description = "Bucket existant pour les CSV"
   type        = string
 }
 
 variable "function_bucket" {
-  description = "Bucket où stocker les zips de Cloud Functions"
+  description = "Bucket où stocker les archives de Functions"
   type        = string
 }
 
@@ -29,6 +29,6 @@ variable "bq_dataset_id" {
 }
 
 variable "terraform_sa_email" {
-  description = "Email du user/SA exécutant Terraform"
+  description = "Email du compte (user ou SA) exécutant Terraform"
   type        = string
 }
