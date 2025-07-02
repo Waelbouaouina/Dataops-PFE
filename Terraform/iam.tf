@@ -1,7 +1,6 @@
 ##############################
 # Récupère le numéro de projet pour Composer
 ##############################
-data "google_project" "current" {}
 
 ##############################
 # IAM bindings pour dataloader-sa (importé)
