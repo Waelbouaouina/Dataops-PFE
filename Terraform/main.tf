@@ -29,6 +29,21 @@ resource "google_project_service" "composer_api" {
 
 
 ##############################
+# Création des topics Pub/Sub
+##############################
+
+resource "google_pubsub_topic" "csv_success_topic" {
+  project = var.project_id
+  name    = "csv-success-topic"
+}
+
+resource "google_pubsub_topic" "csv_error_topic" {
+  project = var.project_id
+  name    = "csv-error-topic"
+}
+
+
+##############################
 # BigQuery Dataset & Tables
 ##############################
 
@@ -58,7 +73,7 @@ resource "google_bigquery_table" "bds_table" {
 
 
 ##############################
-# Cloud Function: packaging & deploy
+# Cloud Function packaging & deploy
 ##############################
 
 data "archive_file" "csv_validator_zip" {
@@ -78,7 +93,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
   runtime               = "python39"
   region                = var.region
   entry_point           = "validate_csv"
-  service_account_email = var.dataloader_sa_email
+  service_account_email = data.google_service_account.dataloader_sa.email
 
   source_archive_bucket = data.google_storage_bucket.function_source_bucket.name
   source_archive_object = google_storage_bucket_object.csv_validator_zip.name
@@ -89,26 +104,26 @@ resource "google_cloudfunctions_function" "csv_validator" {
   }
 
   environment_variables = {
-    SUCCESS_TOPIC = data.google_pubsub_topic.csv_success_topic.id
-    ERROR_TOPIC   = data.google_pubsub_topic.csv_error_topic.id
+    SUCCESS_TOPIC = google_pubsub_topic.csv_success_topic.id
+    ERROR_TOPIC   = google_pubsub_topic.csv_error_topic.id
   }
 }
 
 
 ##############################
-# Pub/Sub Subscription → Cloud Run
+# Pub/Sub → Cloud Run
 ##############################
 
 resource "google_pubsub_subscription" "invoke_dataloader" {
   name    = "invoke-dataloader-sub"
   project = var.project_id
-  topic   = "projects/${var.project_id}/topics/csv-success-topic"
+  topic   = google_pubsub_topic.csv_success_topic.id
 
   push_config {
     push_endpoint = google_cloud_run_service.dataloader_service.status[0].url
 
     oidc_token {
-      service_account_email = var.dataloader_sa_email
+      service_account_email = data.google_service_account.dataloader_sa.email
     }
   }
 }
@@ -124,7 +139,7 @@ resource "google_cloud_run_service" "dataloader_service" {
 
   template {
     spec {
-      service_account_name = var.dataloader_sa_email
+      service_account_name = data.google_service_account.dataloader_sa.email
 
       containers {
         image = "gcr.io/${var.project_id}/dataloader-image:latest"
@@ -163,7 +178,7 @@ resource "google_composer_environment" "composer_env" {
 
   config {
     node_config {
-      service_account = var.dataloader_sa_email
+      service_account = data.google_service_account.dataloader_sa.email
     }
     software_config {
       image_version = "composer-2.13.4-airflow-2.10.5"
