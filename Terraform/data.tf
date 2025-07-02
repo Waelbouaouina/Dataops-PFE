@@ -1,24 +1,7 @@
-# Buckets & topics existants
+##############################
+# Import du Service Account dataloader-sa déjà créé
+##############################
 
-data "google_storage_bucket" "inventory_bucket" {
-  name = var.data_bucket
-}
-
-data "google_storage_bucket" "function_source_bucket" {
-  name = var.function_bucket
-}
-
-data "google_pubsub_topic" "csv_success_topic" {
-  project = var.project_id
-  name    = "csv-success-topic"
-}
-
-data "google_pubsub_topic" "csv_error_topic" {
-  project = var.project_id
-  name    = "csv-error-topic"
-}
-
-# Import du service account dataloader-sa existant
 data "google_service_account" "dataloader_sa" {
   account_id = "dataloader-sa"
   project    = var.project_id

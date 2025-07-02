@@ -4,7 +4,7 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Région (ex : europe-west1)"
+  description = "Région (ex: europe-west1)"
   type        = string
 }
 
@@ -14,12 +14,12 @@ variable "location" {
 }
 
 variable "data_bucket" {
-  description = "Bucket existant pour les CSV"
+  description = "Nom du bucket de données existant"
   type        = string
 }
 
 variable "function_bucket" {
-  description = "Bucket où stocker les archives de Functions"
+  description = "Nom du bucket où stocker les archives de Cloud Functions"
   type        = string
 }
 
@@ -30,5 +30,10 @@ variable "bq_dataset_id" {
 
 variable "terraform_sa_email" {
   description = "Email du compte (user ou SA) exécutant Terraform"
+  type        = string
+}
+
+variable "dataloader_sa_email" {
+  description = "Email du service account dataloader à impersonner"
   type        = string
 }

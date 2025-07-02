@@ -1,17 +1,12 @@
-// Récupère le numéro de projet pour Composer
+##############################
+# Récupère le numéro de projet pour Composer
+##############################
 data "google_project" "current" {}
 
-//
-// Import du Service Account dataloader-sa existant
-//
-data "google_service_account" "dataloader_sa" {
-  account_id = "dataloader-sa"
-  project    = var.project_id
-}
+##############################
+# IAM bindings pour dataloader-sa (importé)
+##############################
 
-//
-// 1) Permissions pour dataloader-sa
-//
 resource "google_project_iam_member" "sa_bigquery_data_owner" {
   project = var.project_id
   role    = "roles/bigquery.dataOwner"
@@ -42,9 +37,10 @@ resource "google_service_account_iam_member" "composer_act_as_dataloader" {
   member             = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
 }
 
-//
-// 2) Permissions pour TON Terraform (user ou SA)
-//
+##############################
+# IAM bindings pour TON Terraform (user ou SA)
+##############################
+
 resource "google_project_iam_member" "tf_bigquery_admin" {
   project = var.project_id
   role    = "roles/bigquery.admin"
