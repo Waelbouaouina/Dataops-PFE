@@ -35,4 +35,16 @@ variable "bq_dataset_id" {
   type        = string
 }
 
+// variables.tf
+
+variable "terraform_sa_email" {
+  description = "Email du compte (user ou service account) exécutant Terraform"
+  type        = string
+}
+
+variable "dataloader_sa_email" {
+  description = "Email du Service Account dataloader"
+  type        = string
+}
+
 

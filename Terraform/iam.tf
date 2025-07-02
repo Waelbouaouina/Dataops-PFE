@@ -1,12 +1,17 @@
-// iam.tf
-
-// On suppose que var.project_id est déjà défini dans variables.tf
-// et que sa.tf contient bien la data source pour dataloader_sa.
-
 locals {
-  sa_email = data.google_service_account.dataloader_sa.email
+  # on n'utilise plus data.google_service_account
+  sa_email = var.dataloader_sa_email
 }
 
+# Permet à TON user (ou SA Terraform) de lire les SAs si besoin
+# (Optionnel si tu n'en as plus besoin)
+resource "google_project_iam_member" "terraform_sa_serviceaccount_viewer" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountViewer"
+  member  = "user:${var.terraform_sa_email}"
+}
+
+# Bindings pour le SA dataloader
 resource "google_project_iam_member" "sa_pubsub_publisher" {
   project = var.project_id
   role    = "roles/pubsub.publisher"

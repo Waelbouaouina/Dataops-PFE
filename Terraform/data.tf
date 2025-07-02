@@ -26,4 +26,10 @@ data "google_pubsub_topic" "csv_error_topic" {
 
 data "google_service_account" "dataloader_sa" {
   account_id = "dataloader-sa"
+
+  # <- garantit que le binding Terraform_sa_serviceaccount_viewer
+  #    sera créé AVANT la lecture de ce data source
+  depends_on = [
+    google_project_iam_member.terraform_sa_serviceaccount_viewer
+  ]
 }
