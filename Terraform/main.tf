@@ -1,36 +1,50 @@
-##################################
-# 1) APIS
-##################################
+###############################################################################
+# main.tf – COPIER-COLLER COMPLET
+###############################################################################
+
+##############################
+# 1) Activer les APIs
+##############################
+
 resource "google_project_service" "bigquery_api" {
   project = var.project_id
   service = "bigquery.googleapis.com"
 }
+
 resource "google_project_service" "pubsub_api" {
   project = var.project_id
   service = "pubsub.googleapis.com"
 }
+
 resource "google_project_service" "run_api" {
   project = var.project_id
   service = "run.googleapis.com"
 }
+
 resource "google_project_service" "cloudfunctions_api" {
   project = var.project_id
   service = "cloudfunctions.googleapis.com"
 }
+
 resource "google_project_service" "composer_api" {
   project = var.project_id
   service = "composer.googleapis.com"
 }
 
-##################################
+
+##############################
 # 2) BigQuery Dataset & Tables
-##################################
+##############################
+
 resource "google_bigquery_dataset" "inventory_dataset" {
   project    = var.project_id
   dataset_id = var.bq_dataset_id
   location   = var.location
 
-  depends_on = [ google_project_iam_member.tf_bigquery_admin ]
+  # Attendre que Terraform ait les droits bigquery.admin
+  depends_on = [
+    google_project_iam_binding.tf_project_roles
+  ]
 }
 
 resource "google_bigquery_table" "raw_table" {
@@ -38,7 +52,10 @@ resource "google_bigquery_table" "raw_table" {
   table_id   = "raw_table"
   schema     = file("${path.module}/schemas/raw_table.json")
 
-  depends_on = [ google_project_iam_member.tf_bigquery_admin ]
+  # Idem
+  depends_on = [
+    google_project_iam_binding.tf_project_roles
+  ]
 }
 
 resource "google_bigquery_table" "tds_table" {
@@ -46,7 +63,9 @@ resource "google_bigquery_table" "tds_table" {
   table_id   = "tds_table"
   schema     = file("${path.module}/schemas/tds_table.json")
 
-  depends_on = [ google_project_iam_member.tf_bigquery_admin ]
+  depends_on = [
+    google_project_iam_binding.tf_project_roles
+  ]
 }
 
 resource "google_bigquery_table" "bds_table" {
@@ -54,12 +73,16 @@ resource "google_bigquery_table" "bds_table" {
   table_id   = "bds_table"
   schema     = file("${path.module}/schemas/bds_table.json")
 
-  depends_on = [ google_project_iam_member.tf_bigquery_admin ]
+  depends_on = [
+    google_project_iam_binding.tf_project_roles
+  ]
 }
 
-##################################
-# 3) Packaging & déploiement CF
-##################################
+
+##############################
+# 3) Packaging & déploiement Cloud Functions
+##############################
+
 data "archive_file" "csv_validator_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../cloud_function"
@@ -71,7 +94,10 @@ resource "google_storage_bucket_object" "csv_validator_zip" {
   name   = "csv_validator.zip"
   source = data.archive_file.csv_validator_zip.output_path
 
-  depends_on = [ google_project_iam_member.tf_storage_admin ]
+  # Attendre storage.admin
+  depends_on = [
+    google_project_iam_binding.tf_project_roles
+  ]
 }
 
 resource "google_cloudfunctions_function" "csv_validator" {
@@ -94,15 +120,18 @@ resource "google_cloudfunctions_function" "csv_validator" {
     ERROR_TOPIC   = data.google_pubsub_topic.csv_error_topic.id
   }
 
+  # Attendre cloudfunctions.admin + actAs SA
   depends_on = [
-    google_project_iam_member.tf_cloudfunctions_admin,
+    google_project_iam_binding.tf_project_roles,
     google_service_account_iam_member.tf_act_as_dataloader
   ]
 }
 
-##################################
-# 4) Subscription → Cloud Run
-##################################
+
+##############################
+# 4) Pub/Sub Subscription → Cloud Run
+##############################
+
 resource "google_pubsub_subscription" "invoke_dataloader" {
   name    = "invoke-dataloader-sub"
   project = var.project_id
@@ -116,12 +145,17 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
     }
   }
 
-  depends_on = [ google_project_iam_member.tf_pubsub_admin ]
+  # Attendre pubsub.admin
+  depends_on = [
+    google_project_iam_binding.tf_project_roles
+  ]
 }
 
-##################################
+
+##############################
 # 5) Cloud Run – Dataloader
-##################################
+##############################
+
 resource "google_cloud_run_service" "dataloader_service" {
   name     = "dataloader-service"
   location = var.region
@@ -154,15 +188,18 @@ resource "google_cloud_run_service" "dataloader_service" {
     latest_revision = true
   }
 
+  # Attendre run.admin + actAs SA
   depends_on = [
-    google_project_iam_member.tf_run_admin,
+    google_project_iam_binding.tf_project_roles,
     google_service_account_iam_member.tf_act_as_dataloader
   ]
 }
 
-##################################
+
+##############################
 # 6) Cloud Composer v2 – Environment
-##################################
+##############################
+
 resource "google_composer_environment" "composer_env" {
   project = var.project_id
   region  = var.region
@@ -177,15 +214,18 @@ resource "google_composer_environment" "composer_env" {
     }
   }
 
+  # Attendre composer.admin + actAs SA
   depends_on = [
-    google_project_iam_member.tf_composer_admin,
+    google_project_iam_binding.tf_project_roles,
     google_service_account_iam_member.tf_act_as_dataloader
   ]
 }
 
-##################################
-# Outputs
-##################################
+
+##############################
+# 7) Outputs
+##############################
+
 output "composer_dag_bucket" {
   description = "Bucket GCS pour déposer les DAGs"
   value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
