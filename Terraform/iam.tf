@@ -1,6 +1,6 @@
-###############################
-# 1) Bindings pour TON user Terraform
-###############################
+####################################
+# 1) Bindings projet pour TON USER
+####################################
 
 resource "google_project_iam_binding" "tf_bq_admin" {
   project = var.project_id
@@ -38,9 +38,9 @@ resource "google_project_iam_binding" "tf_composer_admin" {
   members = ["user:${var.terraform_user_email}"]
 }
 
-###############################
-# 2) actAs & TokenCreator pour TON user sur dataloader-sa
-###############################
+####################################
+# 2) Autorisation actAs & token pour TON USER sur dataloader-sa
+####################################
 
 resource "google_service_account_iam_member" "tf_act_as_dataloader" {
   service_account_id = data.google_service_account.dataloader_sa.name
@@ -54,9 +54,9 @@ resource "google_service_account_iam_member" "tf_token_creator" {
   member             = "user:${var.terraform_user_email}"
 }
 
-###############################
+####################################
 # 3) Bindings runtime pour dataloader-sa
-###############################
+####################################
 
 resource "google_project_iam_binding" "sa_storage_viewer" {
   project = var.project_id
@@ -76,12 +76,13 @@ resource "google_project_iam_binding" "sa_bq_dataowner" {
   members = ["serviceAccount:${data.google_service_account.dataloader_sa.email}"]
 }
 
-###############################
+####################################
 # 4) Bindings pour Cloud Build SA
-###############################
+####################################
 
 locals {
-  cloudbuild_sa = "service-${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
+  # Sans "service-" : c'est exactement PROJECT_NUMBER@cloudbuild.gserviceaccount.com
+  cloudbuild_sa = "${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
 }
 
 resource "google_project_iam_binding" "cb_bq_admin" {

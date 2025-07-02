@@ -170,7 +170,7 @@ resource "google_cloud_run_service" "dataloader_service" {
 }
 
 ##################################
-# 6) Cloud Composer v2 – Env
+# 6) Cloud Composer v2 – Environment
 ##################################
 
 resource "google_composer_environment" "composer_env" {
