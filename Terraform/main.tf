@@ -27,6 +27,7 @@ resource "google_project_service" "composer_api" {
   service = "composer.googleapis.com"
 }
 
+
 ##############################
 # BigQuery Dataset
 ##############################
@@ -35,7 +36,12 @@ resource "google_bigquery_dataset" "inventory_dataset" {
   project    = var.project_id
   dataset_id = var.bq_dataset_id
   location   = var.location
+
+  depends_on = [
+    google_project_iam_member.tf_bigquery_admin
+  ]
 }
+
 
 ##############################
 # BigQuery Tables
@@ -45,19 +51,32 @@ resource "google_bigquery_table" "raw_table" {
   dataset_id = google_bigquery_dataset.inventory_dataset.dataset_id
   table_id   = "raw_table"
   schema     = file("${path.module}/schemas/raw_table.json")
+
+  depends_on = [
+    google_project_iam_member.tf_bigquery_admin
+  ]
 }
 
 resource "google_bigquery_table" "tds_table" {
   dataset_id = google_bigquery_dataset.inventory_dataset.dataset_id
   table_id   = "tds_table"
   schema     = file("${path.module}/schemas/tds_table.json")
+
+  depends_on = [
+    google_project_iam_member.tf_bigquery_admin
+  ]
 }
 
 resource "google_bigquery_table" "bds_table" {
   dataset_id = google_bigquery_dataset.inventory_dataset.dataset_id
   table_id   = "bds_table"
   schema     = file("${path.module}/schemas/bds_table.json")
+
+  depends_on = [
+    google_project_iam_member.tf_bigquery_admin
+  ]
 }
+
 
 ##############################
 # Cloud Function: packaging & deploy
@@ -94,7 +113,13 @@ resource "google_cloudfunctions_function" "csv_validator" {
     SUCCESS_TOPIC = data.google_pubsub_topic.csv_success_topic.id
     ERROR_TOPIC   = data.google_pubsub_topic.csv_error_topic.id
   }
+
+  depends_on = [
+    google_project_iam_member.tf_cloudfunctions_admin,
+    google_service_account_iam_member.tf_act_as_dataloader
+  ]
 }
+
 
 ##############################
 # Pub/Sub Subscription → Cloud Run
@@ -113,6 +138,7 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
     }
   }
 }
+
 
 ##############################
 # Cloud Run – Dataloader
@@ -149,7 +175,13 @@ resource "google_cloud_run_service" "dataloader_service" {
     percent         = 100
     latest_revision = true
   }
+
+  depends_on = [
+    google_project_iam_member.tf_run_admin,
+    google_service_account_iam_member.tf_act_as_dataloader
+  ]
 }
+
 
 ##############################
 # Cloud Composer v2 – Environment
@@ -168,7 +200,14 @@ resource "google_composer_environment" "composer_env" {
       image_version = "composer-2.13.4-airflow-2.10.5"
     }
   }
+
+  depends_on = [
+    google_service_account_iam_member.tf_act_as_dataloader,
+    google_project_iam_member.composer_service_agent_ext,
+    google_service_account_iam_member.composer_act_as_dataloader
+  ]
 }
+
 
 ##############################
 # Outputs
