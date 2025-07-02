@@ -1,7 +1,4 @@
-##############################
-# Activation des APIs
-##############################
-
+# Activer les APIs
 resource "google_project_service" "bigquery_api" {
   project = var.project_id
   service = "bigquery.googleapis.com"
@@ -27,20 +24,13 @@ resource "google_project_service" "composer_api" {
   service = "composer.googleapis.com"
 }
 
-##############################
-# BigQuery Dataset
-##############################
-
+# BigQuery Dataset & Tables (exécutés as dataloader-sa)
 resource "google_bigquery_dataset" "inventory_dataset" {
   provider   = google.dataloader
   project    = var.project_id
   dataset_id = var.bq_dataset_id
   location   = var.location
 }
-
-##############################
-# BigQuery Tables
-##############################
 
 resource "google_bigquery_table" "raw_table" {
   provider   = google.dataloader
@@ -63,10 +53,7 @@ resource "google_bigquery_table" "bds_table" {
   schema     = file("${path.module}/schemas/bds_table.json")
 }
 
-##############################
-# Cloud Function: packaging + deploy
-##############################
-
+# Cloud Function packaging + deploy
 data "archive_file" "csv_validator_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../cloud_function"
@@ -102,10 +89,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
   }
 }
 
-##############################
-# Pub/Sub Subscription → Cloud Run
-##############################
-
+# Pub/Sub → Cloud Run
 resource "google_pubsub_subscription" "invoke_dataloader" {
   provider = google.dataloader
   name     = "invoke-dataloader-sub"
@@ -121,10 +105,7 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
   }
 }
 
-##############################
 # Cloud Run – Dataloader
-##############################
-
 resource "google_cloud_run_service" "dataloader_service" {
   provider = google.dataloader
   name     = "dataloader-service"
@@ -159,16 +140,12 @@ resource "google_cloud_run_service" "dataloader_service" {
   }
 }
 
-##############################
 # Cloud Composer v2 – Environment
-##############################
-
 resource "google_composer_environment" "composer_env" {
   provider = google.dataloader
-
-  project = var.project_id
-  name    = "composer-environment"
-  region  = var.region
+  project  = var.project_id
+  region   = var.region
+  name     = "composer-environment"
 
   config {
     node_config {
@@ -180,11 +157,8 @@ resource "google_composer_environment" "composer_env" {
   }
 }
 
-##############################
-# Output
-##############################
-
+# Outputs
 output "composer_dag_bucket" {
-  value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
   description = "Bucket pour déposer les DAGs"
+  value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
 }
