@@ -1,11 +1,12 @@
-##############################
-# Récupère le numéro de projet pour Composer
-##############################
+// iam.tf
 
-##############################
-# IAM bindings pour dataloader-sa (importé)
-##############################
+// 1) Import du SA existant
+data "google_service_account" "dataloader_sa" {
+  account_id = "dataloader-sa"
+  project    = var.project_id
+}
 
+// 2) Project IAM bindings pour dataloader-sa
 resource "google_project_iam_member" "sa_bigquery_data_owner" {
   project = var.project_id
   role    = "roles/bigquery.dataOwner"
@@ -30,16 +31,20 @@ resource "google_project_iam_member" "composer_service_agent_ext" {
   member  = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
 }
 
+// 3) Impersonation & TokenCreator pour Composer
 resource "google_service_account_iam_member" "composer_act_as_dataloader" {
   service_account_id = data.google_service_account.dataloader_sa.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
 }
 
-##############################
-# IAM bindings pour TON Terraform (user ou SA)
-##############################
+resource "google_service_account_iam_member" "composer_token_creator" {
+  service_account_id = data.google_service_account.dataloader_sa.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.current.number}@cloudcomposer-accounts.iam.gserviceaccount.com"
+}
 
+// 4) Project IAM bindings pour TON Terraform
 resource "google_project_iam_member" "tf_bigquery_admin" {
   project = var.project_id
   role    = "roles/bigquery.admin"
@@ -70,8 +75,15 @@ resource "google_project_iam_member" "tf_pubsub_admin" {
   member  = "user:${var.terraform_sa_email}"
 }
 
+// 5) Impersonation & TokenCreator pour TON Terraform
 resource "google_service_account_iam_member" "tf_act_as_dataloader" {
   service_account_id = data.google_service_account.dataloader_sa.name
   role               = "roles/iam.serviceAccountUser"
+  member             = "user:${var.terraform_sa_email}"
+}
+
+resource "google_service_account_iam_member" "tf_token_creator" {
+  service_account_id = data.google_service_account.dataloader_sa.name
+  role               = "roles/iam.serviceAccountTokenCreator"
   member             = "user:${var.terraform_sa_email}"
 }
