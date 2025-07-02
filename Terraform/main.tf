@@ -30,32 +30,27 @@ resource "google_project_service" "composer_api" {
 
 ##############################
 # BigQuery Dataset & Tables
-# exécutés AS dataloader-sa
 ##############################
 
 resource "google_bigquery_dataset" "inventory_dataset" {
-  provider   = google.dataloader
   project    = var.project_id
   dataset_id = var.bq_dataset_id
   location   = var.location
 }
 
 resource "google_bigquery_table" "raw_table" {
-  provider   = google.dataloader
   dataset_id = google_bigquery_dataset.inventory_dataset.dataset_id
   table_id   = "raw_table"
   schema     = file("${path.module}/schemas/raw_table.json")
 }
 
 resource "google_bigquery_table" "tds_table" {
-  provider   = google.dataloader
   dataset_id = google_bigquery_dataset.inventory_dataset.dataset_id
   table_id   = "tds_table"
   schema     = file("${path.module}/schemas/tds_table.json")
 }
 
 resource "google_bigquery_table" "bds_table" {
-  provider   = google.dataloader
   dataset_id = google_bigquery_dataset.inventory_dataset.dataset_id
   table_id   = "bds_table"
   schema     = file("${path.module}/schemas/bds_table.json")
@@ -63,8 +58,7 @@ resource "google_bigquery_table" "bds_table" {
 
 
 ##############################
-# Cloud Function packaging & deploy
-# exécutés AS dataloader-sa
+# Cloud Function: packaging & deploy
 ##############################
 
 data "archive_file" "csv_validator_zip" {
@@ -74,14 +68,12 @@ data "archive_file" "csv_validator_zip" {
 }
 
 resource "google_storage_bucket_object" "csv_validator_zip" {
-  provider = google.dataloader
-  name     = "csv_validator.zip"
-  bucket   = data.google_storage_bucket.function_source_bucket.name
-  source   = data.archive_file.csv_validator_zip.output_path
+  name   = "csv_validator.zip"
+  bucket = data.google_storage_bucket.function_source_bucket.name
+  source = data.archive_file.csv_validator_zip.output_path
 }
 
 resource "google_cloudfunctions_function" "csv_validator" {
-  provider              = google.dataloader
   name                  = "csv-validator"
   runtime               = "python39"
   region                = var.region
@@ -104,15 +96,13 @@ resource "google_cloudfunctions_function" "csv_validator" {
 
 
 ##############################
-# Pub/Sub → Cloud Run
-# exécutés AS dataloader-sa
+# Pub/Sub Subscription → Cloud Run
 ##############################
 
 resource "google_pubsub_subscription" "invoke_dataloader" {
-  provider = google.dataloader
-  name     = "invoke-dataloader-sub"
-  project  = var.project_id
-  topic    = "projects/${var.project_id}/topics/csv-success-topic"
+  name    = "invoke-dataloader-sub"
+  project = var.project_id
+  topic   = "projects/${var.project_id}/topics/csv-success-topic"
 
   push_config {
     push_endpoint = google_cloud_run_service.dataloader_service.status[0].url
@@ -126,11 +116,9 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
 
 ##############################
 # Cloud Run – Dataloader
-# exécutés AS dataloader-sa
 ##############################
 
 resource "google_cloud_run_service" "dataloader_service" {
-  provider = google.dataloader
   name     = "dataloader-service"
   location = var.region
 
@@ -166,14 +154,12 @@ resource "google_cloud_run_service" "dataloader_service" {
 
 ##############################
 # Cloud Composer v2 – Environment
-# exécutés AS dataloader-sa
 ##############################
 
 resource "google_composer_environment" "composer_env" {
-  provider = google.dataloader
-  project  = var.project_id
-  region   = var.region
-  name     = "composer-environment"
+  project = var.project_id
+  region  = var.region
+  name    = "composer-environment"
 
   config {
     node_config {
@@ -191,6 +177,6 @@ resource "google_composer_environment" "composer_env" {
 ##############################
 
 output "composer_dag_bucket" {
-  description = "Bucket pour déposer les DAGs"
+  description = "Bucket GCS pour déposer les DAGs"
   value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
 }
