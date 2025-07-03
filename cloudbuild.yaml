@@ -10,6 +10,7 @@ substitutions:
   _DATA_BUCKET:          "tmt-storage-01"
   _TF_VAR_FILE:          "terraform.tfvars"
   _TF_DIR:               "Terraform"
+  _BQ_DATASET:           "inventory_dataset"
   _IMAGE:                "gcr.io/$_PROJECT_ID/dataloader-image:latest"
   _FUNCTION_NAME:        "csv-validator"
   _FUNCTION_RUNTIME:     "python39"
@@ -53,7 +54,19 @@ steps:
         -backend-config="bucket=${_PROJECT_ID}-tfstate" \
         -backend-config="prefix=terraform/state"
 
-# 3) IAM Apply (bindings + actAs/token)
+# 3) Terraform Import (BigQuery dataset already exists)
+- name: hashicorp/terraform:light
+  id: Terraform Import
+  entrypoint: sh
+  args:
+    - -c
+    - |
+      cd ${_TF_DIR}
+      terraform import \
+        google_bigquery_dataset.inventory_dataset \
+        ${_PROJECT_ID}:${_BQ_DATASET}
+
+# 4) IAM Apply (bindings + actAs/token)
 - name: hashicorp/terraform:light
   id: Terraform IAM Apply
   entrypoint: sh
@@ -72,7 +85,7 @@ steps:
         -target=google_service_account_iam_member.tf_token_creator \
         -var-file=${_TF_VAR_FILE}
 
-# 4) Terraform Validate
+# 5) Terraform Validate
 - name: hashicorp/terraform:light
   id: Terraform Validate
   entrypoint: sh
@@ -82,7 +95,7 @@ steps:
       cd ${_TF_DIR}
       terraform validate
 
-# 5) Terraform Apply (infra complète)
+# 6) Terraform Apply (infra complète)
 - name: hashicorp/terraform:light
   id: Terraform Apply
   entrypoint: sh
@@ -93,7 +106,7 @@ steps:
       terraform apply -auto-approve \
         -var-file=${_TF_VAR_FILE}
 
-# 6) Build & Push Docker
+# 7) Build & Push Docker
 - name: gcr.io/cloud-builders/docker
   id: Build Dataloader
   args: ["build","-t","${_IMAGE}","-f","Dataloader/Dockerfile","."]
@@ -102,7 +115,7 @@ steps:
   id: Push Dataloader
   args: ["push","${_IMAGE}"]
 
-# 7) Deploy Cloud Run
+# 8) Deploy Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy Cloud Run
   entrypoint: bash
@@ -116,7 +129,7 @@ steps:
         --service-account="dataloader-sa@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --allow-unauthenticated
 
-# 8) Deploy Cloud Function
+# 9) Deploy Cloud Function
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy CSV Validator
   entrypoint: bash
@@ -136,7 +149,7 @@ steps:
         --entry-point=${_FUNCTION_ENTRY} \
         --set-env-vars SUCCESS_TOPIC=${_SUCCESS_TOPIC},ERROR_TOPIC=${_ERROR_TOPIC}
 
-# 9) Test CSV Upload
+# 10) Test CSV Upload
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Upload CSV
   entrypoint: bash
@@ -145,7 +158,7 @@ steps:
     - |
       gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://${_DATA_BUCKET}/
 
-# 10) Sync DAGs vers Composer
+# 11) Sync DAGs vers Composer
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Sync DAGs
   entrypoint: bash

@@ -1,20 +1,14 @@
 ##################################
-# 1) Activer les APIs
+# 1) Activer les APIs nécessaires
 ##################################
-
 resource "google_project_service" "bigquery_api" {
   project = var.project_id
   service = "bigquery.googleapis.com"
 }
 
-resource "google_project_service" "pubsub_api" {
+resource "google_project_service" "storage_api" {
   project = var.project_id
-  service = "pubsub.googleapis.com"
-}
-
-resource "google_project_service" "run_api" {
-  project = var.project_id
-  service = "run.googleapis.com"
+  service = "storage.googleapis.com"
 }
 
 resource "google_project_service" "cloudfunctions_api" {
@@ -28,9 +22,8 @@ resource "google_project_service" "composer_api" {
 }
 
 ##################################
-# 2) BigQuery Dataset & Tables
+# 2) Création du dataset BigQuery
 ##################################
-
 resource "google_bigquery_dataset" "inventory_dataset" {
   project    = var.project_id
   dataset_id = var.bq_dataset_id
@@ -41,20 +34,9 @@ resource "google_bigquery_dataset" "inventory_dataset" {
   ]
 }
 
-resource "google_bigquery_table" "raw_table" {
-  dataset_id = google_bigquery_dataset.inventory_dataset.dataset_id
-  table_id   = "raw_table"
-  schema     = file("${path.module}/schemas/raw_table.json")
-
-  depends_on = [
-    google_project_iam_binding.cb_bq_admin
-  ]
-}
-
 ##################################
-# 3) Packaging & déploiement CF
+# 3) Packaging et upload de la Cloud Function
 ##################################
-
 data "archive_file" "csv_validator_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../cloud_function"
@@ -67,11 +49,13 @@ resource "google_storage_bucket_object" "csv_validator_zip" {
   source = data.archive_file.csv_validator_zip.output_path
 
   depends_on = [
-    google_project_iam_binding.cb_storage_admin,
-    google_project_iam_binding.cb_storage_obj_admin
+    google_project_iam_binding.tf_storage_admin
   ]
 }
 
+##################################
+# 4) Déploiement de la Cloud Function
+##################################
 resource "google_cloudfunctions_function" "csv_validator" {
   name                  = "csv-validator"
   runtime               = "python39"
@@ -87,85 +71,15 @@ resource "google_cloudfunctions_function" "csv_validator" {
     resource   = data.google_storage_bucket.inventory_bucket.name
   }
 
-  environment_variables = {
-    SUCCESS_TOPIC = data.google_pubsub_topic.csv_success_topic.id
-    ERROR_TOPIC   = data.google_pubsub_topic.csv_error_topic.id
-  }
-
   depends_on = [
-    google_project_iam_binding.cb_cf_admin,
-    google_service_account_iam_member.cb_act_as_dataloader
+    google_project_iam_binding.tf_cf_admin,
+    google_service_account_iam_member.cb_actas_dataloader
   ]
 }
 
 ##################################
-# 4) Pub/Sub Subscription → Cloud Run
+# 5) Création de l’environnement Composer
 ##################################
-
-resource "google_pubsub_subscription" "invoke_dataloader" {
-  name    = "invoke-dataloader-sub"
-  project = var.project_id
-  topic   = data.google_pubsub_topic.csv_success_topic.id
-
-  push_config {
-    push_endpoint = google_cloud_run_service.dataloader_service.status[0].url
-
-    oidc_token {
-      service_account_email = data.google_service_account.dataloader_sa.email
-    }
-  }
-
-  depends_on = [
-    google_project_iam_binding.cb_pubsub_admin
-  ]
-}
-
-##################################
-# 5) Cloud Run – Dataloader
-##################################
-
-resource "google_cloud_run_service" "dataloader_service" {
-  name     = "dataloader-service"
-  location = var.region
-
-  template {
-    spec {
-      service_account_name = data.google_service_account.dataloader_sa.email
-
-      containers {
-        image = "gcr.io/${var.project_id}/dataloader-image:latest"
-
-        env {
-          name  = "BUCKET_NAME"
-          value = data.google_storage_bucket.inventory_bucket.name
-        }
-        env {
-          name  = "BQ_DATASET"
-          value = var.bq_dataset_id
-        }
-        env {
-          name  = "BQ_TABLE"
-          value = google_bigquery_table.raw_table.table_id
-        }
-      }
-    }
-  }
-
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-
-  depends_on = [
-    google_project_iam_binding.cb_run_admin,
-    google_service_account_iam_member.cb_act_as_dataloader
-  ]
-}
-
-##################################
-# 6) Cloud Composer v2 – Environment
-##################################
-
 resource "google_composer_environment" "composer_env" {
   project = var.project_id
   region  = var.region
@@ -181,17 +95,8 @@ resource "google_composer_environment" "composer_env" {
   }
 
   depends_on = [
-    google_project_iam_binding.cb_composer_admin,
-    google_project_iam_binding.cb_composer_env_admin,
-    google_service_account_iam_member.cb_act_as_dataloader
+    google_project_iam_binding.cb_composer_env_creator,
+    google_project_iam_binding.tf_composer_admin,
+    google_service_account_iam_member.cb_actas_dataloader
   ]
-}
-
-##################################
-# 7) Outputs
-##################################
-
-output "composer_dag_bucket" {
-  description = "Bucket GCS pour déposer les DAGs"
-  value       = google_composer_environment.composer_env.config[0].dag_gcs_prefix
 }
