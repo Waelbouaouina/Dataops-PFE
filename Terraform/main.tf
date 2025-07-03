@@ -36,7 +36,9 @@ resource "google_bigquery_dataset" "inventory_dataset" {
   dataset_id = var.bq_dataset_id
   location   = var.location
 
-  depends_on = [ google_project_iam_binding.cb_bq_admin ]
+  depends_on = [
+    google_project_iam_binding.cb_bq_admin
+  ]
 }
 
 resource "google_bigquery_table" "raw_table" {
@@ -44,23 +46,9 @@ resource "google_bigquery_table" "raw_table" {
   table_id   = "raw_table"
   schema     = file("${path.module}/schemas/raw_table.json")
 
-  depends_on = [ google_project_iam_binding.cb_bq_admin ]
-}
-
-resource "google_bigquery_table" "tds_table" {
-  dataset_id = google_bigquery_dataset.inventory_dataset.dataset_id
-  table_id   = "tds_table"
-  schema     = file("${path.module}/schemas/tds_table.json")
-
-  depends_on = [ google_project_iam_binding.cb_bq_admin ]
-}
-
-resource "google_bigquery_table" "bds_table" {
-  dataset_id = google_bigquery_dataset.inventory_dataset.dataset_id
-  table_id   = "bds_table"
-  schema     = file("${path.module}/schemas/bds_table.json")
-
-  depends_on = [ google_project_iam_binding.cb_bq_admin ]
+  depends_on = [
+    google_project_iam_binding.cb_bq_admin
+  ]
 }
 
 ##################################
@@ -78,7 +66,10 @@ resource "google_storage_bucket_object" "csv_validator_zip" {
   name   = "csv_validator.zip"
   source = data.archive_file.csv_validator_zip.output_path
 
-  depends_on = [ google_project_iam_binding.cb_storage_admin ]
+  depends_on = [
+    google_project_iam_binding.cb_storage_admin,
+    google_project_iam_binding.cb_storage_obj_admin
+  ]
 }
 
 resource "google_cloudfunctions_function" "csv_validator" {
@@ -108,7 +99,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
 }
 
 ##################################
-# 4) Subscription → Cloud Run
+# 4) Pub/Sub Subscription → Cloud Run
 ##################################
 
 resource "google_pubsub_subscription" "invoke_dataloader" {
@@ -124,7 +115,9 @@ resource "google_pubsub_subscription" "invoke_dataloader" {
     }
   }
 
-  depends_on = [ google_project_iam_binding.cb_pubsub_admin ]
+  depends_on = [
+    google_project_iam_binding.cb_pubsub_admin
+  ]
 }
 
 ##################################
@@ -189,6 +182,7 @@ resource "google_composer_environment" "composer_env" {
 
   depends_on = [
     google_project_iam_binding.cb_composer_admin,
+    google_project_iam_binding.cb_composer_env_admin,
     google_service_account_iam_member.cb_act_as_dataloader
   ]
 }

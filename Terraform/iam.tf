@@ -39,7 +39,7 @@ resource "google_project_iam_binding" "tf_composer_admin" {
 }
 
 ####################################
-# 2) Autorisation actAs & token pour TON USER sur dataloader-sa
+# 2) actAs & TokenCreator pour TON USER sur dataloader-sa
 ####################################
 
 resource "google_service_account_iam_member" "tf_act_as_dataloader" {
@@ -81,7 +81,7 @@ resource "google_project_iam_binding" "sa_bq_dataowner" {
 ####################################
 
 locals {
-  # Sans "service-" : c'est exactement PROJECT_NUMBER@cloudbuild.gserviceaccount.com
+  # identifiant exact : PROJECT_NUMBER@cloudbuild.gserviceaccount.com
   cloudbuild_sa = "${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
 }
 
@@ -118,6 +118,21 @@ resource "google_project_iam_binding" "cb_run_admin" {
 resource "google_project_iam_binding" "cb_composer_admin" {
   project = var.project_id
   role    = "roles/composer.admin"
+  members = ["serviceAccount:${local.cloudbuild_sa}"]
+}
+
+# --- NOUVEAU ---
+# Pour créer/supprimer les objets GCS (zip CF)
+resource "google_project_iam_binding" "cb_storage_obj_admin" {
+  project = var.project_id
+  role    = "roles/storage.objectAdmin"
+  members = ["serviceAccount:${local.cloudbuild_sa}"]
+}
+
+# Pour créer des environnements Composer
+resource "google_project_iam_binding" "cb_composer_env_admin" {
+  project = var.project_id
+  role    = "roles/composer.environmentAdmin"
   members = ["serviceAccount:${local.cloudbuild_sa}"]
 }
 
