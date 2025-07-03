@@ -1,7 +1,3 @@
-data "google_service_account" "dataloader_sa" {
-  account_id = "dataloader-sa"
-  project    = var.project_id
-}
 
 locals {
   build_sa = "tmt-dev-01@${var.project_id}.iam.gserviceaccount.com"
