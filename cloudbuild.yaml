@@ -64,7 +64,7 @@ steps:
       cd ${_TF_DIR}
       terraform import \
         google_bigquery_dataset.inventory_dataset \
-        ${_PROJECT_ID}:${_BQ_DATASET}
+        "${_PROJECT_ID}:${_BQ_DATASET}"
 
 # 4) IAM Apply (bindings + actAs/token)
 - name: hashicorp/terraform:light
