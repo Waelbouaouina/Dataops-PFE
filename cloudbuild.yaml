@@ -13,7 +13,6 @@ substitutions:
   _BQ_DATASET:      "inventory_dataset"
   _FUNCTION_NAME:   "csv-validator"
   _IMAGE:           "gcr.io/$_PROJECT_ID/dataloader-image:latest"
-  _FUNCTION_RUNTIME:"python39"
   _FUNCTION_ENTRY:  "validate_csv"
   _SUCCESS_TOPIC:   "projects/$_PROJECT_ID/topics/csv-success-topic"
   _ERROR_TOPIC:     "projects/$_PROJECT_ID/topics/csv-error-topic"
