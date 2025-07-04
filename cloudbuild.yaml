@@ -4,152 +4,199 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 substitutions:
-  _PROJECT_ID:      "tmtrackdev01"
-  _REGION:          "europe-west1"
-  _COMPOSER_BUCKET: "europe-west1-dataops-pfe-composer-env-bucket"
-  _DATA_BUCKET:     "tmt-storage-01"
-  _TF_VAR_FILE:     "terraform.tfvars"
-  _TF_DIR:          "Terraform"
-  _BQ_DATASET:      "inventory_dataset"
-  _FUNCTION_NAME:   "csv-validator"
-  _IMAGE:           "gcr.io/$_PROJECT_ID/dataloader-image:latest"
-  _FUNCTION_ENTRY:  "validate_csv"
-  _SUCCESS_TOPIC:   "projects/$_PROJECT_ID/topics/csv-success-topic"
-  _ERROR_TOPIC:     "projects/$_PROJECT_ID/topics/csv-error-topic"
+  _PROJECT_ID:           "tmtrackdev01"
+  _REGION:               "europe-west1"
+  _COMPOSER_BUCKET:      "europe-west1-dataops-pfe-composer-env-bucket"
+  _DATA_BUCKET:          "tmt-storage-01"
+  _TF_VAR_FILE:          "terraform.tfvars"
+  _TF_DIR:               "Terraform"
+  _BQ_DATASET:           "inventory_dataset"
+  _IMAGE:                "gcr.io/$_PROJECT_ID/dataloader-image:latest"
+  _FUNCTION_NAME:        "csv-validator"
+  _FUNCTION_RUNTIME:     "python39"
+  _FUNCTION_ENTRY:       "validate_csv"
+  _SUCCESS_TOPIC:        "projects/$_PROJECT_ID/topics/csv-success-topic"
+  _ERROR_TOPIC:          "projects/$_PROJECT_ID/topics/csv-error-topic"
 
 steps:
-# 0) Enable APIs
+# 0) Enable required APIs
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Enable APIs
-  entrypoint: bash
+  entrypoint: "bash"
   args:
-    - -c |
-        gcloud services enable \
-          cloudbuild.googleapis.com \
-          bigquery.googleapis.com \
-          storage.googleapis.com \
-          cloudfunctions.googleapis.com \
-          composer.googleapis.com \
-          run.googleapis.com \
-          pubsub.googleapis.com
+    - "-c"
+    - |
+      gcloud services enable \
+        serviceusage.googleapis.com \
+        cloudbuild.googleapis.com \
+        pubsub.googleapis.com \
+        bigquery.googleapis.com \
+        storage.googleapis.com \
+        composer.googleapis.com \
+        cloudfunctions.googleapis.com \
+        run.googleapis.com
 
 # 1) Git Config
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Git Config
-  entrypoint: bash
-  args: ["-c","git config --global init.defaultBranch main"]
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - git config --global init.defaultBranch main
 
 # 2) Terraform Init
 - name: hashicorp/terraform:light
   id: Terraform Init
-  entrypoint: sh
+  entrypoint: "bash"
   args:
-    - -c |
-        cd ${_TF_DIR}
-        terraform init \
-          -backend-config="bucket=${_PROJECT_ID}-tfstate" \
-          -backend-config="prefix=terraform/state"
+    - "-c"
+    - |
+      cd ${_TF_DIR}
+      terraform init \
+        -backend-config="bucket=${_PROJECT_ID}-tfstate" \
+        -backend-config="prefix=terraform/state"
 
 # 3) Clean prior state entries
 - name: hashicorp/terraform:light
   id: Terraform State Clean
-  entrypoint: sh
+  entrypoint: "bash"
   args:
-    - -c |
-        cd ${_TF_DIR}
-        terraform state rm google_bigquery_dataset.inventory_dataset             || true
-        terraform state rm google_cloudfunctions_function.csv_validator          || true
+    - "-c"
+    - |
+      cd ${_TF_DIR}
+      terraform state rm google_bigquery_dataset.inventory_dataset     || true
+      terraform state rm google_cloudfunctions_function.csv_validator    || true
 
 # 4) Import existing BigQuery dataset
 - name: hashicorp/terraform:light
   id: Terraform Import Dataset
-  entrypoint: sh
+  entrypoint: "bash"
   args:
-    - -c |
-        cd ${_TF_DIR}
-        terraform import \
-          google_bigquery_dataset.inventory_dataset \
-          ${_PROJECT_ID}:${_BQ_DATASET}
+    - "-c"
+    - |
+      cd ${_TF_DIR}
+      terraform import google_bigquery_dataset.inventory_dataset ${_PROJECT_ID}:${_BQ_DATASET}
 
 # 5) Import existing Cloud Function
 - name: hashicorp/terraform:light
   id: Terraform Import Function
-  entrypoint: sh
+  entrypoint: "bash"
   args:
-    - -c |
-        cd ${_TF_DIR}
-        terraform import \
-          google_cloudfunctions_function.csv_validator \
-          projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
+    - "-c"
+    - |
+      cd ${_TF_DIR}
+      terraform import google_cloudfunctions_function.csv_validator projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
 
-# 6) IAM Apply for Cloud Build SA (storage + bigquery + serviceAccountUser)
+# 6) IAM Apply for Cloud Build SA
 - name: hashicorp/terraform:light
   id: Terraform IAM Apply
-  entrypoint: sh
+  entrypoint: "bash"
   args:
-    - -c |
-        cd ${_TF_DIR}
-        terraform apply -auto-approve \
-          -target=google_project_iam_binding.cb_storage_obj_admin \
-          -target=google_project_iam_binding.cb_bq_admin \
-          -target=google_service_account_iam_member.cb_actas_dataloader \
-          -var-file=${_TF_VAR_FILE}
+    - "-c"
+    - |
+      cd ${_TF_DIR}
+      terraform apply -auto-approve \
+        -target=google_project_iam_binding.cb_storage_obj_admin \
+        -target=google_project_iam_binding.cb_bq_admin \
+        -target=google_service_account_iam_member.cb_actas_dataloader \
+        -var-file=${_TF_VAR_FILE}
 
-# Grant Composer Environment Creator role via gcloud
+# 7) Grant Composer Role via gcloud
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Grant Composer Role
-  entrypoint: bash
+  entrypoint: "bash"
   args:
-    - -c |
-        gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
-          --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
-          --role="roles/composer.environmentCreator"
+    - "-c"
+    - |
+      gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
+        --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
+        --role="roles/composer.environmentCreator"
 
 # 8) Terraform Validate
 - name: hashicorp/terraform:light
   id: Terraform Validate
-  entrypoint: sh
+  entrypoint: "bash"
   args:
-    - -c |
-        cd ${_TF_DIR}
-        terraform validate
+    - "-c"
+    - |
+      cd ${_TF_DIR}
+      terraform validate
 
 # 9) Terraform Apply (rest of infra)
 - name: hashicorp/terraform:light
   id: Terraform Apply
-  entrypoint: sh
+  entrypoint: "bash"
   args:
-    - -c |
-        cd ${_TF_DIR}
-        terraform apply -auto-approve \
-          -var-file=${_TF_VAR_FILE}
+    - "-c"
+    - |
+      cd ${_TF_DIR}
+      terraform apply -auto-approve -var-file=${_TF_VAR_FILE}
 
-# 10) Build & Push Docker
+# 10) Build & Push Docker image
 - name: gcr.io/cloud-builders/docker
   id: Build Dataloader
-  args: ["build","-t","${_IMAGE}","-f","Dataloader/Dockerfile","."]
+  args:
+    - build
+    - -t
+    - "${_IMAGE}"
+    - -f
+    - "Dataloader/Dockerfile"
+    - "."
 
 - name: gcr.io/cloud-builders/docker
   id: Push Dataloader
-  args: ["push","${_IMAGE}"]
+  args:
+    - push
+    - "${_IMAGE}"
 
 # 11) Deploy Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy Cloud Run
-  entrypoint: bash
+  entrypoint: "bash"
   args:
-    - -c |
-        gcloud run deploy dataloader-service \
-          --image="${_IMAGE}" \
-          --region="${_REGION}" \
-          --platform=managed \
-          --service-account="dataloader-sa@${_PROJECT_ID}.iam.gserviceaccount.com" \
-          --allow-unauthenticated
+    - "-c"
+    - |
+      gcloud run deploy dataloader-service \
+        --image="${_IMAGE}" \
+        --region="${_REGION}" \
+        --platform=managed \
+        --service-account="dataloader-sa@${_PROJECT_ID}.iam.gserviceaccount.com" \
+        --allow-unauthenticated
 
-# 12) Sync DAGs to Composer
+# 12) Deploy Cloud Function
+- name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  id: Deploy CSV Validator
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+      cd cloud_function
+      zip -r ../csv_validator.zip .
+      gsutil cp ../csv_validator.zip gs://${_DATA_BUCKET}/
+      cd ..
+      gcloud functions deploy ${_FUNCTION_NAME} \
+        --region=${_REGION} \
+        --runtime=${_FUNCTION_RUNTIME} \
+        --trigger-resource=${_DATA_BUCKET} \
+        --trigger-event=google.storage.object.finalize \
+        --source=cloud_function \
+        --entry-point=${_FUNCTION_ENTRY} \
+        --set-env-vars SUCCESS_TOPIC=${_SUCCESS_TOPIC},ERROR_TOPIC=${_ERROR_TOPIC}
+
+# 13) Upload sample CSV
+- name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  id: Upload CSV
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+      gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://${_DATA_BUCKET}/
+
+# 14) Sync DAGs to Composer
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Sync DAGs
-  entrypoint: bash
+  entrypoint: "bash"
   args:
-    - -c |
-        gsutil -m rsync -r Airflow_home/dags gs://${_COMPOSER_BUCKET}/dags
+    - "-c"
+    - |
+      gsutil -m rsync -r Airflow_home/dags gs://${_COMPOSER_BUCKET}/dags
