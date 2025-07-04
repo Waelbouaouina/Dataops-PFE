@@ -5,24 +5,21 @@ resource "google_project_service" "bigquery_api" {
   project = var.project_id
   service = "bigquery.googleapis.com"
 }
-
 resource "google_project_service" "storage_api" {
   project = var.project_id
   service = "storage.googleapis.com"
 }
-
 resource "google_project_service" "cloudfunctions_api" {
   project = var.project_id
   service = "cloudfunctions.googleapis.com"
 }
-
 resource "google_project_service" "composer_api" {
   project = var.project_id
   service = "composer.googleapis.com"
 }
 
 ##################################
-# 2) Création du dataset BigQuery
+# 2) Dataset BigQuery (import existant)
 ##################################
 resource "google_bigquery_dataset" "inventory_dataset" {
   project    = var.project_id
@@ -30,7 +27,7 @@ resource "google_bigquery_dataset" "inventory_dataset" {
   location   = var.location
 
   depends_on = [
-    google_project_iam_binding.cb_bq_admin
+    google_project_iam_binding.cb_bq_admin,
   ]
 }
 
@@ -49,18 +46,18 @@ resource "google_storage_bucket_object" "csv_validator_zip" {
   source = data.archive_file.csv_validator_zip.output_path
 
   depends_on = [
-    google_project_iam_binding.tf_storage_admin
+    google_project_iam_binding.tf_storage_admin,
   ]
 }
 
 ##################################
-# 4) Déploiement de la Cloud Function
+# 4) Déploiement de la Cloud Function (import existant)
 ##################################
 resource "google_cloudfunctions_function" "csv_validator" {
-  name                  = "csv-validator"
-  runtime               = "python39"
+  name                  = var.function_name
+  runtime               = var.function_runtime
   region                = var.region
-  entry_point           = "validate_csv"
+  entry_point           = var.function_entry
   service_account_email = data.google_service_account.dataloader_sa.email
 
   source_archive_bucket = data.google_storage_bucket.function_source_bucket.name
@@ -73,12 +70,12 @@ resource "google_cloudfunctions_function" "csv_validator" {
 
   depends_on = [
     google_project_iam_binding.tf_cf_admin,
-    google_service_account_iam_member.cb_actas_dataloader
+    google_service_account_iam_member.cb_actas_dataloader,
   ]
 }
 
 ##################################
-# 5) Création de l’environnement Composer
+# 5) Environnement Composer
 ##################################
 resource "google_composer_environment" "composer_env" {
   project = var.project_id
@@ -94,9 +91,8 @@ resource "google_composer_environment" "composer_env" {
     }
   }
 
+  # On ne lie plus le binding composer.environmentCreator dans Terraform
   depends_on = [
-    google_project_iam_binding.cb_composer_env_creator,
-    google_project_iam_binding.tf_composer_admin,
-    google_service_account_iam_member.cb_actas_dataloader
+    google_service_account_iam_member.cb_actas_dataloader,
   ]
 }
