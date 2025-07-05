@@ -1,3 +1,13 @@
+
+terraform {
+  backend "gcs" {
+    bucket = "tmtrackdev01-tfstate"
+    prefix = "terraform/state"
+  }
+}
+
+
+
 ##################################
 # 1) Activer les APIs nécessaires
 ##################################

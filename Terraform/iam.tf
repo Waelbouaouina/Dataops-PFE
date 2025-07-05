@@ -23,11 +23,6 @@ resource "google_project_iam_binding" "tf_cf_admin" {
   members = ["serviceAccount:${local.build_sa}"]
 }
 
-# 4) ActAs sur dataloader-sa
-data "google_service_account" "dataloader_sa" {
-  account_id = "dataloader-sa"
-  project    = var.project_id
-}
 
 resource "google_service_account_iam_member" "cb_actas_dataloader" {
   service_account_id = data.google_service_account.dataloader_sa.name
