@@ -45,7 +45,7 @@ steps:
     - git config --global init.defaultBranch main
 
 # 2) Terraform Init
-- name: hashicorp/terraform:light
+- name: hashicorp/terraform:latest
   id: Terraform Init
   entrypoint: "bash"
   args:
@@ -57,7 +57,7 @@ steps:
         -backend-config="prefix=terraform/state"
 
 # 3) Clean prior state entries
-- name: hashicorp/terraform:light
+- name: hashicorp/terraform:latest
   id: Terraform State Clean
   entrypoint: "bash"
   args:
@@ -68,7 +68,7 @@ steps:
       terraform state rm google_cloudfunctions_function.csv_validator    || true
 
 # 4) Import existing BigQuery dataset
-- name: hashicorp/terraform:light
+- name: hashicorp/terraform:latest
   id: Terraform Import Dataset
   entrypoint: "bash"
   args:
@@ -78,7 +78,7 @@ steps:
       terraform import google_bigquery_dataset.inventory_dataset ${_PROJECT_ID}:${_BQ_DATASET}
 
 # 5) Import existing Cloud Function
-- name: hashicorp/terraform:light
+- name: hashicorp/terraform:latest
   id: Terraform Import Function
   entrypoint: "bash"
   args:
@@ -88,7 +88,7 @@ steps:
       terraform import google_cloudfunctions_function.csv_validator projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
 
 # 6) IAM Apply for Cloud Build SA
-- name: hashicorp/terraform:light
+- name: hashicorp/terraform:latest
   id: Terraform IAM Apply
   entrypoint: "bash"
   args:
@@ -113,7 +113,7 @@ steps:
         --role="roles/composer.environmentCreator"
 
 # 8) Terraform Validate
-- name: hashicorp/terraform:light
+- name: hashicorp/terraform:latest
   id: Terraform Validate
   entrypoint: "bash"
   args:
@@ -123,7 +123,7 @@ steps:
       terraform validate
 
 # 9) Terraform Apply (rest of infra)
-- name: hashicorp/terraform:light
+- name: hashicorp/terraform:latest
   id: Terraform Apply
   entrypoint: "bash"
   args:
