@@ -22,91 +22,91 @@ steps:
 # 0) Enable required APIs
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Enable APIs
-  entrypoint: "bash"
+  entrypoint: bash
   args:
-    - "-c"
+    - -c
     - |
       gcloud services enable \
-        serviceusage.googleapis.com \
         cloudbuild.googleapis.com \
         pubsub.googleapis.com \
         bigquery.googleapis.com \
         storage.googleapis.com \
-        composer.googleapis.com \
         cloudfunctions.googleapis.com \
+        composer.googleapis.com \
         run.googleapis.com
 
 # 1) Git Config
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Git Config
-  entrypoint: "bash"
+  entrypoint: bash
   args:
-    - "-c"
+    - -c
     - git config --global init.defaultBranch main
 
 # 2) Terraform Init
 - name: hashicorp/terraform:latest
   id: Terraform Init
-  entrypoint: "bash"
+  dir: ${_TF_DIR}
   args:
-    - "-c"
-    - |
-      cd ${_TF_DIR}
-      terraform init \
-        -backend-config="bucket=${_PROJECT_ID}-tfstate" \
-        -backend-config="prefix=terraform/state"
+    - init
+    - -backend-config=bucket=${_PROJECT_ID}-tfstate
+    - -backend-config=prefix=terraform/state
 
-# 3) Clean prior state entries
+# 3) Clean previous state entries (BQ)
 - name: hashicorp/terraform:latest
-  id: Terraform State Clean
-  entrypoint: "bash"
+  id: Terraform State Clean BQ
+  dir: ${_TF_DIR}
   args:
-    - "-c"
-    - |
-      cd ${_TF_DIR}
-      terraform state rm google_bigquery_dataset.inventory_dataset     || true
-      terraform state rm google_cloudfunctions_function.csv_validator    || true
+    - state
+    - rm
+    - google_bigquery_dataset.inventory_dataset
+  allowFailure: true
+
+- name: hashicorp/terraform:latest
+  id: Terraform State Clean CF
+  dir: ${_TF_DIR}
+  args:
+    - state
+    - rm
+    - google_cloudfunctions_function.csv_validator
+  allowFailure: true
 
 # 4) Import existing BigQuery dataset
 - name: hashicorp/terraform:latest
   id: Terraform Import Dataset
-  entrypoint: "bash"
+  dir: ${_TF_DIR}
   args:
-    - "-c"
-    - |
-      cd ${_TF_DIR}
-      terraform import google_bigquery_dataset.inventory_dataset ${_PROJECT_ID}:${_BQ_DATASET}
+    - import
+    - google_bigquery_dataset.inventory_dataset
+    - ${_PROJECT_ID}:${_BQ_DATASET}
 
 # 5) Import existing Cloud Function
 - name: hashicorp/terraform:latest
   id: Terraform Import Function
-  entrypoint: "bash"
+  dir: ${_TF_DIR}
   args:
-    - "-c"
-    - |
-      cd ${_TF_DIR}
-      terraform import google_cloudfunctions_function.csv_validator projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
+    - import
+    - google_cloudfunctions_function.csv_validator
+    - projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
 
-# 6) IAM Apply for Cloud Build SA
+# 6) Terraform IAM Apply (Storage, BigQuery, ActAs)
 - name: hashicorp/terraform:latest
   id: Terraform IAM Apply
-  entrypoint: "bash"
+  dir: ${_TF_DIR}
   args:
-    - "-c"
-    - |
-      cd ${_TF_DIR}
-      terraform apply -auto-approve \
-        -target=google_project_iam_binding.cb_storage_obj_admin \
-        -target=google_project_iam_binding.cb_bq_admin \
-        -target=google_service_account_iam_member.cb_actas_dataloader \
-        -var-file=${_TF_VAR_FILE}
+    - apply
+    - -auto-approve
+    - -target=google_project_iam_binding.tf_storage_admin
+    - -target=google_project_iam_binding.cb_bq_admin
+    - -target=google_service_account_iam_member.cb_actas_dataloader
+    - -var-file=${_TF_VAR_FILE}
 
 # 7) Grant Composer Role via gcloud
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Grant Composer Role
-  entrypoint: "bash"
+  entrypoint: bash
   args:
-    - "-c"
+    - -c
     - |
       gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
         --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
@@ -115,22 +115,18 @@ steps:
 # 8) Terraform Validate
 - name: hashicorp/terraform:latest
   id: Terraform Validate
-  entrypoint: "bash"
+  dir: ${_TF_DIR}
   args:
-    - "-c"
-    - |
-      cd ${_TF_DIR}
-      terraform validate
+    - validate
 
 # 9) Terraform Apply (rest of infra)
 - name: hashicorp/terraform:latest
-  id: Terraform Apply
-  entrypoint: "bash"
+  id: Terraform Apply All
+  dir: ${_TF_DIR}
   args:
-    - "-c"
-    - |
-      cd ${_TF_DIR}
-      terraform apply -auto-approve -var-file=${_TF_VAR_FILE}
+    - apply
+    - -auto-approve
+    - -var-file=${_TF_VAR_FILE}
 
 # 10) Build & Push Docker image
 - name: gcr.io/cloud-builders/docker
@@ -152,9 +148,9 @@ steps:
 # 11) Deploy Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy Cloud Run
-  entrypoint: "bash"
+  entrypoint: bash
   args:
-    - "-c"
+    - -c
     - |
       gcloud run deploy dataloader-service \
         --image="${_IMAGE}" \
@@ -166,9 +162,9 @@ steps:
 # 12) Deploy Cloud Function
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy CSV Validator
-  entrypoint: "bash"
+  entrypoint: bash
   args:
-    - "-c"
+    - -c
     - |
       cd cloud_function
       zip -r ../csv_validator.zip .
@@ -186,17 +182,17 @@ steps:
 # 13) Upload sample CSV
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Upload CSV
-  entrypoint: "bash"
+  entrypoint: bash
   args:
-    - "-c"
+    - -c
     - |
       gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://${_DATA_BUCKET}/
 
 # 14) Sync DAGs to Composer
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Sync DAGs
-  entrypoint: "bash"
+  entrypoint: bash
   args:
-    - "-c"
+    - -c
     - |
       gsutil -m rsync -r Airflow_home/dags gs://${_COMPOSER_BUCKET}/dags
