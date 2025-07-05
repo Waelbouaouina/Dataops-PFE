@@ -1,12 +1,9 @@
-
 terraform {
   backend "gcs" {
-    bucket = "tmtrackdev01-tfstate"
+    bucket = "tmtrackdev02-tfstate"   # nom exact de ton bucket TFState
     prefix = "terraform/state"
   }
 }
-
-
 
 ##################################
 # 1) Activer les APIs nécessaires
@@ -15,21 +12,24 @@ resource "google_project_service" "bigquery_api" {
   project = var.project_id
   service = "bigquery.googleapis.com"
 }
+
 resource "google_project_service" "storage_api" {
   project = var.project_id
   service = "storage.googleapis.com"
 }
+
 resource "google_project_service" "cloudfunctions_api" {
   project = var.project_id
   service = "cloudfunctions.googleapis.com"
 }
+
 resource "google_project_service" "composer_api" {
   project = var.project_id
   service = "composer.googleapis.com"
 }
 
 ##################################
-# 2) Dataset BigQuery (import existant)
+# 2) Création (ou import) du Dataset BigQuery
 ##################################
 resource "google_bigquery_dataset" "inventory_dataset" {
   project    = var.project_id
@@ -61,7 +61,7 @@ resource "google_storage_bucket_object" "csv_validator_zip" {
 }
 
 ##################################
-# 4) Déploiement de la Cloud Function (import existant)
+# 4) Déploiement (ou import) de la Cloud Function
 ##################################
 resource "google_cloudfunctions_function" "csv_validator" {
   name                  = var.function_name
@@ -101,7 +101,6 @@ resource "google_composer_environment" "composer_env" {
     }
   }
 
-  # On ne lie plus le binding composer.environmentCreator dans Terraform
   depends_on = [
     google_service_account_iam_member.cb_actas_dataloader,
   ]
