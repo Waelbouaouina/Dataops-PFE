@@ -1,5 +1,7 @@
-google-cloud-storage==2.8.0
-google-cloud-pubsub==2.15.0
-pandas==1.5.3
-great_expectations==0.16.16
+
+pandas==2.2.2
+google-cloud-storage==2.16.0
+google-cloud-pubsub==2.21.0
+great_expectations==0.18.12
 numpy==1.25.0
+

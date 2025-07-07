@@ -11,7 +11,7 @@ substitutions:
   _BQ_DATASET:           "inventory_dataset"
   _IMAGE:                "gcr.io/tmtrackdev01/dataloader-image:latest"
   _FUNCTION_NAME:        "csv-validator"
-  _FUNCTION_RUNTIME:     "python39"
+  _FUNCTION_RUNTIME:     "python310"
   _FUNCTION_ENTRY:       "validate_csv"
   _SUCCESS_TOPIC:        "projects/tmtrackdev01/topics/csv-success-topic"
   _ERROR_TOPIC:          "projects/tmtrackdev01/topics/csv-error-topic"
@@ -50,41 +50,17 @@ steps:
     - -reconfigure
     - -backend-config=prod.tfbackend
 
-# 3) Import existing GCS Bucket
+# 3–6) Terraform Imports (GCS, Composer, BigQuery, Function)
 - name: hashicorp/terraform:latest
-  id: Terraform Import Bucket
+  id: Terraform Imports
   dir: ${_TF_DIR}
   args:
-    - import
-    - google_storage_bucket.new_data_bucket
-    - tmt-storage-02
-
-# 4) Import existing Composer Environment
-- name: hashicorp/terraform:latest
-  id: Terraform Import Composer
-  dir: ${_TF_DIR}
-  args:
-    - import
-    - google_composer_environment.composer_env
-    - projects/${_PROJECT_ID}/locations/${_REGION}/environments/composer-environment
-
-# 5) Import existing BigQuery dataset
-- name: hashicorp/terraform:latest
-  id: Terraform Import Dataset
-  dir: ${_TF_DIR}
-  args:
-    - import
-    - google_bigquery_dataset.inventory_dataset
-    - projects/tmtrackdev01/datasets/inventory_dataset
-
-# 6) Import existing Cloud Function
-- name: hashicorp/terraform:latest
-  id: Terraform Import Function
-  dir: ${_TF_DIR}
-  args:
-    - import
-    - google_cloudfunctions_function.csv_validator
-    - projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
+    - -c
+    - |
+      terraform import google_storage_bucket.new_data_bucket tmt-storage-02
+      terraform import google_composer_environment.composer_env projects/${_PROJECT_ID}/locations/${_REGION}/environments/composer-environment
+      terraform import google_bigquery_dataset.inventory_dataset projects/${_PROJECT_ID}/datasets/${_BQ_DATASET}
+      terraform import google_cloudfunctions_function.csv_validator projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
 
 # 7) Terraform IAM Apply
 - name: hashicorp/terraform:latest
@@ -108,7 +84,6 @@ steps:
       gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
         --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --role="roles/composer.admin"
-
       gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
         --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --role="roles/composer.worker"
@@ -147,7 +122,7 @@ steps:
   args:
     - build
     - -t
-    - gcr.io/tmtrackdev01/dataloader-image:latest
+    - ${_IMAGE}
     - -f
     - Dockerfile
     - .
@@ -156,7 +131,7 @@ steps:
   id: Push Dataloader
   args:
     - push
-    - gcr.io/tmtrackdev01/dataloader-image:latest
+    - ${_IMAGE}
 
 # 13) Deploy Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
@@ -165,37 +140,33 @@ steps:
   args:
     - -c
     - |
-      echo "Deploying Cloud Run service with image $_IMAGE"
+      echo "Deploying Cloud Run service with image ${_IMAGE}"
       gcloud run deploy dataloader-service \
-        --image=$_IMAGE \
-        --region=$_REGION \
+        --image=${_IMAGE} \
+        --region=${_REGION} \
         --platform=managed \
-        --service-account=dataloader-sa@$_PROJECT_ID.iam.gserviceaccount.com \
+        --service-account=dataloader-sa@${_PROJECT_ID}.iam.gserviceaccount.com \
         --allow-unauthenticated
 
-# Ajoute ceci AVANT le "Deploy CSV Validator"
+# 14) Fix: Add 'actAs' role to Cloud Build SA
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
-  id: Grant ActAs to Cloud Build SA
+  id: Grant ActAs Role
   entrypoint: bash
   args:
     - -c
     - |
       gcloud iam service-accounts add-iam-policy-binding \
         101312727189-compute@developer.gserviceaccount.com \
-        --member="serviceAccount:tmt-dev-01@tmtrackdev01.iam.gserviceaccount.com" \
+        --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --role="roles/iam.serviceAccountUser"
 
-# 14) Deploy CSV Validator
+# 15) Deploy CSV Validator Function
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy CSV Validator
   entrypoint: bash
   args:
     - -c
     - |
-      cd cloud_function
-      python3 -m zipfile -c ../csv_validator.zip .
-      gsutil cp ../csv_validator.zip gs://${_DATA_BUCKET}/
-      cd ..
       gcloud functions deploy ${_FUNCTION_NAME} \
         --region=${_REGION} \
         --runtime=${_FUNCTION_RUNTIME} \
@@ -205,7 +176,7 @@ steps:
         --entry-point=${_FUNCTION_ENTRY} \
         --set-env-vars SUCCESS_TOPIC=${_SUCCESS_TOPIC},ERROR_TOPIC=${_ERROR_TOPIC}
 
-# 15) Upload CSV
+# 16) Upload Sample CSV
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Upload CSV
   entrypoint: bash
@@ -214,7 +185,7 @@ steps:
     - |
       gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://${_DATA_BUCKET}/
 
-# 16) Sync DAGs to Composer
+# 17) Sync DAGs to Composer
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Sync DAGs
   entrypoint: bash
