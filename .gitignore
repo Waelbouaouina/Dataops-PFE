@@ -1,77 +1,15 @@
-# ── Byte-compiled / cache files ────────────────────────────────────────────────
-__pycache__/
-*.py[cod]
-*$py.class
-
-# ── Distribution / packaging ───────────────────────────────────────────────────
-build/
-dist/
-.eggs/
-*.egg-info/
-pip-wheel-metadata/
-__pypackages__/
-
-# ── Virtual environments ───────────────────────────────────────────────────────
-venv/
-env/
-ENV*/
-.venv/
-
-# ── Test caches & coverage ────────────────────────────────────────────────────
-.pytest_cache/
-.cache/
-nosetests.xml
-coverage.xml
-*.cover
-*.coverage
-.coverage.*
-htmlcov/
-.tox/
-
-# ── Terraform ─────────────────────────────────────────────────────────────────
+# Terraform files
+*.tfstate
+*.tfstate.*
 .terraform/
-terraform.tfstate
-terraform.tfstate.backup
-*.tfstate*
-.terraform.lock.hcl
 crash.log
 override.tf
 override.tf.json
-*_override.tf
-*_override.tf.json
+terraform.tfvars
+terraform.tfvars.json
 
-# ── GCP / Cloud SDK ───────────────────────────────────────────────────────────
-.gcloud/                     # config & credentials locales
-credentials.json             # clé de service (ne pas versionner)
-# (évite d'ignorer tous les JSON, tes schémas dans Terraform/schemas restent suivis)
-
-# ── Docker / Container builds ─────────────────────────────────────────────────
-*.tar                        # images exportées
-docker-compose*.yml
-docker-compose.override.yml
-# (pas besoin d'ignorer le Dockerfile)
-
-# ── Logs ─────────────────────────────────────────────────────────────────────
-logs/
-*.log
-airflow_logs/
-
-# ── Great Expectations ────────────────────────────────────────────────────────
-great_expectations/uncommitted/
-
-# ── Data files (optionnel) ────────────────────────────────────────────────────
-# data/                      # décommente si tu ajoutes un dossier data/
-
-# ── IDEs & Editors ───────────────────────────────────────────────────────────
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
-
-# ── OS-specific ──────────────────────────────────────────────────────────────
-.DS_Store
-Thumbs.db
-ehthumbs.db
-
-# ── Misc. local env vars ─────────────────────────────────────────────────────
+# Python
+__pycache__/
+*.pyc
+.venv/
 .env
