@@ -42,7 +42,6 @@ def validate_csv(event, context):
         logging.error(f"Erreur de validation pour le fichier {file_name} : {ve}")
         publish_message("error", f"Erreur de validation pour {file_name} : {ve}")
     
-    return
 
 def publish_message(status, message):
     publisher = pubsub_v1.PublisherClient()

@@ -41,16 +41,6 @@ steps:
     - -c
     - git config --global init.defaultBranch main
 
-- name: gcr.io/google.com/cloudsdktool/cloud-sdk
-  id: Debug TF Dir
-  entrypoint: bash
-  args:
-    - -c
-    - |
-      echo "Current TF DIR: ${_TF_DIR}"
-      ls -la ${_TF_DIR}
-
-
 # 2) Terraform Init
 - name: hashicorp/terraform:latest
   id: Terraform Init
@@ -60,10 +50,11 @@ steps:
     - -reconfigure
     - -backend-config=prod.tfbackend
 
-# 3–6) Terraform Imports (GCS, Composer, BigQuery, Function)
+# 3) Terraform Imports en une seule étape shell
 - name: hashicorp/terraform:latest
   id: Terraform Imports
   dir: ${_TF_DIR}
+  entrypoint: bash
   args:
     - -c
     - |
@@ -72,7 +63,7 @@ steps:
       terraform import google_bigquery_dataset.inventory_dataset projects/${_PROJECT_ID}/datasets/${_BQ_DATASET}
       terraform import google_cloudfunctions_function.csv_validator projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
 
-# 7) Terraform IAM Apply
+# 4) Terraform IAM Apply
 - name: hashicorp/terraform:latest
   id: Terraform IAM Apply
   dir: ${_TF_DIR}
@@ -84,7 +75,7 @@ steps:
     - -target=google_service_account_iam_member.cb_actas_dataloader
     - -var-file=${_TF_VAR_FILE}
 
-# 8) Grant Composer Roles
+# 5) Grant Composer Roles
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Grant Composer Roles
   entrypoint: bash
@@ -98,14 +89,14 @@ steps:
         --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --role="roles/composer.worker"
 
-# 9) Terraform Validate
+# 6) Terraform Validate
 - name: hashicorp/terraform:latest
   id: Terraform Validate
   dir: ${_TF_DIR}
   args:
     - validate
 
-# 10) Grant Storage Viewer to Compute SA
+# 7) Grant Storage Viewer to Compute SA
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Grant Storage Viewer to Compute SA
   entrypoint: bash
@@ -116,7 +107,7 @@ steps:
         --member="serviceAccount:101312727189-compute@developer.gserviceaccount.com" \
         --role="roles/storage.objectViewer"
 
-# 11) Terraform Apply All
+# 8) Terraform Apply All
 - name: hashicorp/terraform:latest
   id: Terraform Apply All
   dir: ${_TF_DIR}
@@ -125,7 +116,7 @@ steps:
     - -auto-approve
     - -var-file=${_TF_VAR_FILE}
 
-# 12) Build & Push Docker image
+# 9) Build & Push Docker image
 - name: gcr.io/cloud-builders/docker
   id: Build Dataloader
   dir: Dataloader
@@ -143,7 +134,7 @@ steps:
     - push
     - ${_IMAGE}
 
-# 13) Deploy Cloud Run
+# 10) Deploy Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy Cloud Run
   entrypoint: bash
@@ -158,7 +149,7 @@ steps:
         --service-account=dataloader-sa@${_PROJECT_ID}.iam.gserviceaccount.com \
         --allow-unauthenticated
 
-# 14) Fix: Add 'actAs' role to Cloud Build SA
+# 11) Fix: Add 'actAs' role to Cloud Build SA
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Grant ActAs Role
   entrypoint: bash
@@ -170,7 +161,7 @@ steps:
         --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --role="roles/iam.serviceAccountUser"
 
-# 15) Deploy CSV Validator Function
+# 12) Deploy CSV Validator Function
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy CSV Validator
   entrypoint: bash
@@ -186,7 +177,7 @@ steps:
         --entry-point=${_FUNCTION_ENTRY} \
         --set-env-vars SUCCESS_TOPIC=${_SUCCESS_TOPIC},ERROR_TOPIC=${_ERROR_TOPIC}
 
-# 16) Upload Sample CSV
+# 13) Upload Sample CSV
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Upload CSV
   entrypoint: bash
@@ -195,7 +186,7 @@ steps:
     - |
       gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://${_DATA_BUCKET}/
 
-# 17) Sync DAGs to Composer
+# 14) Sync DAGs to Composer
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Sync DAGs
   entrypoint: bash
