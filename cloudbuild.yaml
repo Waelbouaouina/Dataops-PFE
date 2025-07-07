@@ -49,8 +49,8 @@ steps:
   dir: ${_TF_DIR}
   args:
     - init
-    - -backend-config=bucket=${_PROJECT_ID}-tfstate
-    - -backend-config=prefix=terraform/state
+    - -reconfigure
+    - -backend-config=prod.tfbackend
 
 # 3) Clean previous state entries (BQ)
 - name: hashicorp/terraform:latest

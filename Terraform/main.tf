@@ -1,8 +1,5 @@
 terraform {
-  backend "gcs" {
-    bucket = "tmtrackdev02-tfstate"   # nom exact de ton bucket TFState
-    prefix = "terraform/state"
-  }
+  required_version = ">= 1.0"
 }
 
 ##################################
@@ -36,13 +33,29 @@ resource "google_bigquery_dataset" "inventory_dataset" {
   dataset_id = var.bq_dataset_id
   location   = var.location
 
+  lifecycle {
+    ignore_changes = [dataset_id]
+  }
+
   depends_on = [
     google_project_iam_binding.cb_bq_admin,
   ]
 }
 
 ##################################
-# 3) Packaging et upload de la Cloud Function
+# 3) Création du nouveau bucket GCS tmt-storage-02
+##################################
+resource "google_storage_bucket" "new_data_bucket" {
+  name          = "tmt-storage-02"
+  project       = var.project_id
+  location      = var.region
+  force_destroy = true  # Permet la suppression même si le bucket contient des objets
+
+  uniform_bucket_level_access = true
+}
+
+##################################
+# 4) Packaging et upload de la Cloud Function
 ##################################
 data "archive_file" "csv_validator_zip" {
   type        = "zip"
@@ -51,7 +64,7 @@ data "archive_file" "csv_validator_zip" {
 }
 
 resource "google_storage_bucket_object" "csv_validator_zip" {
-  bucket = data.google_storage_bucket.function_source_bucket.name
+  bucket = google_storage_bucket.new_data_bucket.name  # Utilise le nouveau bucket
   name   = "csv_validator.zip"
   source = data.archive_file.csv_validator_zip.output_path
 
@@ -61,7 +74,7 @@ resource "google_storage_bucket_object" "csv_validator_zip" {
 }
 
 ##################################
-# 4) Déploiement (ou import) de la Cloud Function
+# 5) Déploiement (ou import) de la Cloud Function
 ##################################
 resource "google_cloudfunctions_function" "csv_validator" {
   name                  = var.function_name
@@ -70,12 +83,12 @@ resource "google_cloudfunctions_function" "csv_validator" {
   entry_point           = var.function_entry
   service_account_email = data.google_service_account.dataloader_sa.email
 
-  source_archive_bucket = data.google_storage_bucket.function_source_bucket.name
+  source_archive_bucket = google_storage_bucket.new_data_bucket.name  # Nouveau bucket
   source_archive_object = google_storage_bucket_object.csv_validator_zip.name
 
   event_trigger {
     event_type = "google.storage.object.finalize"
-    resource   = data.google_storage_bucket.inventory_bucket.name
+    resource   = google_storage_bucket.new_data_bucket.name  # Trigger sur nouveau bucket
   }
 
   depends_on = [
@@ -85,7 +98,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
 }
 
 ##################################
-# 5) Environnement Composer
+# 6) Environnement Composer
 ##################################
 resource "google_composer_environment" "composer_env" {
   project = var.project_id
