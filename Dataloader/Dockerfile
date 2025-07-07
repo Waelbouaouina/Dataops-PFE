@@ -9,8 +9,8 @@ ENV PORT=8080
 WORKDIR /app
 
 # 1) Copier et installer les dépendances
-COPY ./requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -requirements.txt
 
 # 2) Copier la suite Great Expectations (si tu as un dossier great_expectations/)
 COPY great_expectations/ ./great_expectations/
