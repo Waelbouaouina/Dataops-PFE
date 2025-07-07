@@ -173,6 +173,18 @@ steps:
         --service-account=dataloader-sa@$_PROJECT_ID.iam.gserviceaccount.com \
         --allow-unauthenticated
 
+# Ajoute ceci AVANT le "Deploy CSV Validator"
+- name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  id: Grant ActAs to Cloud Build SA
+  entrypoint: bash
+  args:
+    - -c
+    - |
+      gcloud iam service-accounts add-iam-policy-binding \
+        101312727189-compute@developer.gserviceaccount.com \
+        --member="serviceAccount:tmt-dev-01@tmtrackdev01.iam.gserviceaccount.com" \
+        --role="roles/iam.serviceAccountUser"
+
 # 14) Deploy CSV Validator
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy CSV Validator
@@ -181,7 +193,7 @@ steps:
     - -c
     - |
       cd cloud_function
-      zip -r ../csv_validator.zip .
+      python3 -m zipfile -c ../csv_validator.zip .
       gsutil cp ../csv_validator.zip gs://${_DATA_BUCKET}/
       cd ..
       gcloud functions deploy ${_FUNCTION_NAME} \
