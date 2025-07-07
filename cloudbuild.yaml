@@ -1,5 +1,3 @@
-# cloudbuild.yaml
-
 options:
   logging: CLOUD_LOGGING_ONLY
 
@@ -11,12 +9,12 @@ substitutions:
   _TF_VAR_FILE:          "terraform.tfvars"
   _TF_DIR:               "Terraform"
   _BQ_DATASET:           "inventory_dataset"
-  _IMAGE:                "gcr.io/$_PROJECT_ID/dataloader-image:latest"
+  _IMAGE:                "gcr.io/tmtrackdev01/dataloader-image:latest"
   _FUNCTION_NAME:        "csv-validator"
   _FUNCTION_RUNTIME:     "python39"
   _FUNCTION_ENTRY:       "validate_csv"
-  _SUCCESS_TOPIC:        "projects/$_PROJECT_ID/topics/csv-success-topic"
-  _ERROR_TOPIC:          "projects/$_PROJECT_ID/topics/csv-error-topic"
+  _SUCCESS_TOPIC:        "projects/tmtrackdev01/topics/csv-success-topic"
+  _ERROR_TOPIC:          "projects/tmtrackdev01/topics/csv-error-topic"
 
 steps:
 # 0) Enable required APIs
@@ -88,7 +86,7 @@ steps:
     - google_cloudfunctions_function.csv_validator
     - projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
 
-# 7) Terraform IAM Apply (Storage, BigQuery, ActAs)
+# 7) Terraform IAM Apply
 - name: hashicorp/terraform:latest
   id: Terraform IAM Apply
   dir: ${_TF_DIR}
@@ -122,7 +120,7 @@ steps:
   args:
     - validate
 
-# Ajout du rôle Storage Object Viewer au Compute Engine default SA
+# 10) Grant Storage Viewer to Compute SA
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Grant Storage Viewer to Compute SA
   entrypoint: bash
@@ -133,7 +131,7 @@ steps:
         --member="serviceAccount:101312727189-compute@developer.gserviceaccount.com" \
         --role="roles/storage.objectViewer"
 
-# 10) Terraform Apply (rest of infra)
+# 11) Terraform Apply All
 - name: hashicorp/terraform:latest
   id: Terraform Apply All
   dir: ${_TF_DIR}
@@ -142,14 +140,14 @@ steps:
     - -auto-approve
     - -var-file=${_TF_VAR_FILE}
 
-# 11) Build & Push Docker image
+# 12) Build & Push Docker image
 - name: gcr.io/cloud-builders/docker
   id: Build Dataloader
   dir: Dataloader
   args:
     - build
     - -t
-    - gcr.io/$_PROJECT_ID/dataloader-image:latest
+    - gcr.io/tmtrackdev01/dataloader-image:latest
     - -f
     - Dockerfile
     - .
@@ -158,24 +156,24 @@ steps:
   id: Push Dataloader
   args:
     - push
-    - gcr.io/$_PROJECT_ID/dataloader-image:latest
+    - gcr.io/tmtrackdev01/dataloader-image:latest
 
-
-# 12) Deploy Cloud Run
+# 13) Deploy Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy Cloud Run
   entrypoint: bash
   args:
     - -c
     - |
+      echo "Deploying Cloud Run service with image $_IMAGE"
       gcloud run deploy dataloader-service \
-        --image="${_IMAGE}" \
-        --region="${_REGION}" \
+        --image=$_IMAGE \
+        --region=$_REGION \
         --platform=managed \
-        --service-account="dataloader-sa@${_PROJECT_ID}.iam.gserviceaccount.com" \
+        --service-account=dataloader-sa@$_PROJECT_ID.iam.gserviceaccount.com \
         --allow-unauthenticated
 
-# 13) Deploy Cloud Function
+# 14) Deploy CSV Validator
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy CSV Validator
   entrypoint: bash
@@ -195,7 +193,7 @@ steps:
         --entry-point=${_FUNCTION_ENTRY} \
         --set-env-vars SUCCESS_TOPIC=${_SUCCESS_TOPIC},ERROR_TOPIC=${_ERROR_TOPIC}
 
-# 14) Upload sample CSV
+# 15) Upload CSV
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Upload CSV
   entrypoint: bash
@@ -203,7 +201,8 @@ steps:
     - -c
     - |
       gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://${_DATA_BUCKET}/
-# 15) Sync DAGs to Composer
+
+# 16) Sync DAGs to Composer
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Sync DAGs
   entrypoint: bash
