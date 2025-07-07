@@ -7,7 +7,7 @@ substitutions:
   _PROJECT_ID:           "tmtrackdev01"
   _REGION:               "europe-west1"
   _COMPOSER_BUCKET:      "europe-west1-dataops-pfe-composer-env-bucket"
-  _DATA_BUCKET:          "tmt-storage-01"
+  _DATA_BUCKET:          "tmt-storage-02"
   _TF_VAR_FILE:          "terraform.tfvars"
   _TF_DIR:               "Terraform"
   _BQ_DATASET:           "inventory_dataset"
@@ -52,26 +52,25 @@ steps:
     - -reconfigure
     - -backend-config=prod.tfbackend
 
-# 3) Clean previous state entries (BQ)
+# 3) Import existing GCS Bucket
 - name: hashicorp/terraform:latest
-  id: Terraform State Clean BQ
+  id: Terraform Import Bucket
   dir: ${_TF_DIR}
   args:
-    - state
-    - rm
-    - google_bigquery_dataset.inventory_dataset
-  allowFailure: true
+    - import
+    - google_storage_bucket.new_data_bucket
+    - tmt-storage-02
 
+# 4) Import existing Composer Environment
 - name: hashicorp/terraform:latest
-  id: Terraform State Clean CF
+  id: Terraform Import Composer
   dir: ${_TF_DIR}
   args:
-    - state
-    - rm
-    - google_cloudfunctions_function.csv_validator
-  allowFailure: true
+    - import
+    - google_composer_environment.composer_env
+    - projects/${_PROJECT_ID}/locations/${_REGION}/environments/composer-environment
 
-# 4) Import existing BigQuery dataset
+# 5) Import existing BigQuery dataset
 - name: hashicorp/terraform:latest
   id: Terraform Import Dataset
   dir: ${_TF_DIR}
@@ -80,7 +79,7 @@ steps:
     - google_bigquery_dataset.inventory_dataset
     - projects/tmtrackdev01/datasets/inventory_dataset
 
-# 5) Import existing Cloud Function
+# 6) Import existing Cloud Function
 - name: hashicorp/terraform:latest
   id: Terraform Import Function
   dir: ${_TF_DIR}
@@ -89,7 +88,7 @@ steps:
     - google_cloudfunctions_function.csv_validator
     - projects/${_PROJECT_ID}/locations/${_REGION}/functions/${_FUNCTION_NAME}
 
-# 6) Terraform IAM Apply (Storage, BigQuery, ActAs)
+# 7) Terraform IAM Apply (Storage, BigQuery, ActAs)
 - name: hashicorp/terraform:latest
   id: Terraform IAM Apply
   dir: ${_TF_DIR}
@@ -101,7 +100,7 @@ steps:
     - -target=google_service_account_iam_member.cb_actas_dataloader
     - -var-file=${_TF_VAR_FILE}
 
-# 7) Grant Composer Roles
+# 8) Grant Composer Roles
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Grant Composer Roles
   entrypoint: bash
@@ -114,15 +113,16 @@ steps:
 
       gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
         --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
-        --role="roles/composer.worker"    
-# 8) Terraform Validate
+        --role="roles/composer.worker"
+
+# 9) Terraform Validate
 - name: hashicorp/terraform:latest
   id: Terraform Validate
   dir: ${_TF_DIR}
   args:
     - validate
 
-# 9) Terraform Apply (rest of infra)
+# 10) Terraform Apply (rest of infra)
 - name: hashicorp/terraform:latest
   id: Terraform Apply All
   dir: ${_TF_DIR}
@@ -131,7 +131,7 @@ steps:
     - -auto-approve
     - -var-file=${_TF_VAR_FILE}
 
-# 10) Build & Push Docker image
+# 11) Build & Push Docker image
 - name: gcr.io/cloud-builders/docker
   id: Build Dataloader
   args:
@@ -148,7 +148,7 @@ steps:
     - push
     - "${_IMAGE}"
 
-# 11) Deploy Cloud Run
+# 12) Deploy Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy Cloud Run
   entrypoint: bash
@@ -162,7 +162,7 @@ steps:
         --service-account="dataloader-sa@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --allow-unauthenticated
 
-# 12) Deploy Cloud Function
+# 13) Deploy Cloud Function
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy CSV Validator
   entrypoint: bash
@@ -182,7 +182,7 @@ steps:
         --entry-point=${_FUNCTION_ENTRY} \
         --set-env-vars SUCCESS_TOPIC=${_SUCCESS_TOPIC},ERROR_TOPIC=${_ERROR_TOPIC}
 
-# 13) Upload sample CSV
+# 14) Upload sample CSV
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Upload CSV
   entrypoint: bash
@@ -191,7 +191,7 @@ steps:
     - |
       gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://${_DATA_BUCKET}/
 
-# 14) Sync DAGs to Composer
+# 15) Sync DAGs to Composer
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Sync DAGs
   entrypoint: bash
