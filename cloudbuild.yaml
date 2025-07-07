@@ -101,17 +101,20 @@ steps:
     - -target=google_service_account_iam_member.cb_actas_dataloader
     - -var-file=${_TF_VAR_FILE}
 
-# 7) Grant Composer Role via gcloud
+# 7) Grant Composer Roles
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
-  id: Grant Composer Role
+  id: Grant Composer Roles
   entrypoint: bash
   args:
     - -c
     - |
       gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
         --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
-        --role="roles/composer.environmentCreator"
+        --role="roles/composer.admin"
 
+      gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
+        --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
+        --role="roles/composer.worker"    
 # 8) Terraform Validate
 - name: hashicorp/terraform:latest
   id: Terraform Validate
