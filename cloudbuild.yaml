@@ -145,19 +145,20 @@ steps:
 # 11) Build & Push Docker image
 - name: gcr.io/cloud-builders/docker
   id: Build Dataloader
+  dir: Dataloader
   args:
     - build
     - -t
-    - "gcr.io/tmtrackdev01/dataloader-image:latest"
+    - "${_IMAGE}"
     - -f
-    - "Dataloader/Dockerfile"
+    - Dockerfile
     - "."
 
 - name: gcr.io/cloud-builders/docker
   id: Push Dataloader
   args:
     - push
-    - "gcr.io/tmtrackdev01/dataloader-image:latest"
+    - "${_IMAGE}"
 
 
 # 12) Deploy Cloud Run
