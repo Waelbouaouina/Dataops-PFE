@@ -49,9 +49,13 @@ resource "google_storage_bucket" "new_data_bucket" {
   name          = "tmt-storage-02"
   project       = var.project_id
   location      = var.region
-  force_destroy = true  # Permet la suppression même si le bucket contient des objets
-
+  force_destroy = true
   uniform_bucket_level_access = true
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [name]
+  }
 }
 
 ##################################
@@ -112,6 +116,11 @@ resource "google_composer_environment" "composer_env" {
     software_config {
       image_version = "composer-2.13.4-airflow-2.10.5"
     }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [name]
   }
 
   depends_on = [
