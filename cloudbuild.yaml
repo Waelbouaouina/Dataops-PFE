@@ -122,6 +122,17 @@ steps:
   args:
     - validate
 
+# Ajout du rôle Storage Object Viewer au Compute Engine default SA
+- name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  id: Grant Storage Viewer to Compute SA
+  entrypoint: bash
+  args:
+    - -c
+    - |
+      gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
+        --member="serviceAccount:101312727189-compute@developer.gserviceaccount.com" \
+        --role="roles/storage.objectViewer"
+
 # 10) Terraform Apply (rest of infra)
 - name: hashicorp/terraform:latest
   id: Terraform Apply All
