@@ -149,16 +149,16 @@ steps:
   args:
     - build
     - -t
-    - "${_IMAGE}"
+    - gcr.io/$_PROJECT_ID/dataloader-image:latest
     - -f
     - Dockerfile
-    - "."
+    - .
 
 - name: gcr.io/cloud-builders/docker
   id: Push Dataloader
   args:
     - push
-    - "${_IMAGE}"
+    - gcr.io/$_PROJECT_ID/dataloader-image:latest
 
 
 # 12) Deploy Cloud Run
