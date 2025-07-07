@@ -203,7 +203,6 @@ steps:
     - -c
     - |
       gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://${_DATA_BUCKET}/
-
 # 15) Sync DAGs to Composer
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Sync DAGs
