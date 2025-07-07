@@ -41,6 +41,16 @@ steps:
     - -c
     - git config --global init.defaultBranch main
 
+- name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  id: Debug TF Dir
+  entrypoint: bash
+  args:
+    - -c
+    - |
+      echo "Current TF DIR: ${_TF_DIR}"
+      ls -la ${_TF_DIR}
+
+
 # 2) Terraform Init
 - name: hashicorp/terraform:latest
   id: Terraform Init
