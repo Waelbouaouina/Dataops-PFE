@@ -6,7 +6,8 @@ import base64
 import tempfile
 import logging
 
-from flask import Flask, request
+import csv
+from flask import Flask, request  # type: ignore # si ce n’est pas déjà là
 from google.cloud import storage, bigquery, pubsub_v1
 
 app = Flask(__name__)

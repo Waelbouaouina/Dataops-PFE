@@ -148,7 +148,7 @@ steps:
   args:
     - build
     - -t
-    - "${_IMAGE}"
+    - "gcr.io/tmtrackdev01/dataloader-image:latest"
     - -f
     - "Dataloader/Dockerfile"
     - "."
@@ -157,7 +157,8 @@ steps:
   id: Push Dataloader
   args:
     - push
-    - "${_IMAGE}"
+    - "gcr.io/tmtrackdev01/dataloader-image:latest"
+
 
 # 12) Deploy Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
