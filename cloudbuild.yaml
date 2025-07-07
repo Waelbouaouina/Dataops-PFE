@@ -78,7 +78,7 @@ steps:
   args:
     - import
     - google_bigquery_dataset.inventory_dataset
-    - ${_PROJECT_ID}:${_BQ_DATASET}
+    - projects/tmtrackdev01/datasets/inventory_dataset
 
 # 5) Import existing Cloud Function
 - name: hashicorp/terraform:latest
