@@ -11,7 +11,7 @@ substitutions:
   _BQ_DATASET:           "inventory_dataset"
   _IMAGE:                "gcr.io/tmtrackdev01/dataloader-image:latest"
   _FUNCTION_NAME:        "csv-validator"
-  _FUNCTION_RUNTIME:     "python310"
+  _FUNCTION_RUNTIME:     "python39"
   _FUNCTION_ENTRY:       "validate_csv"
   _SUCCESS_TOPIC:        "projects/tmtrackdev01/topics/csv-success-topic"
   _ERROR_TOPIC:          "projects/tmtrackdev01/topics/csv-error-topic"
@@ -75,7 +75,7 @@ steps:
   args:
     - import
     - google_bigquery_dataset.inventory_dataset
-    - projects/${_PROJECT_ID}/datasets/${_BQ_DATASET}
+    - projects/tmtrackdev01/datasets/inventory_dataset
 
 # 6) Import existing Cloud Function
 - name: hashicorp/terraform:latest
@@ -108,6 +108,7 @@ steps:
       gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
         --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --role="roles/composer.admin"
+
       gcloud projects add-iam-policy-binding ${_PROJECT_ID} \
         --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
         --role="roles/composer.worker"
@@ -146,7 +147,7 @@ steps:
   args:
     - build
     - -t
-    - ${_IMAGE}
+    - gcr.io/tmtrackdev01/dataloader-image:latest
     - -f
     - Dockerfile
     - .
@@ -155,7 +156,7 @@ steps:
   id: Push Dataloader
   args:
     - push
-    - ${_IMAGE}
+    - gcr.io/tmtrackdev01/dataloader-image:latest
 
 # 13) Deploy Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
@@ -164,33 +165,37 @@ steps:
   args:
     - -c
     - |
-      echo "Deploying Cloud Run service with image ${_IMAGE}"
+      echo "Deploying Cloud Run service with image $_IMAGE"
       gcloud run deploy dataloader-service \
-        --image=${_IMAGE} \
-        --region=${_REGION} \
+        --image=$_IMAGE \
+        --region=$_REGION \
         --platform=managed \
-        --service-account=dataloader-sa@${_PROJECT_ID}.iam.gserviceaccount.com \
+        --service-account=dataloader-sa@$_PROJECT_ID.iam.gserviceaccount.com \
         --allow-unauthenticated
 
-# 14) Fix: Add 'actAs' role to Cloud Build SA
+# Ajoute ceci AVANT le "Deploy CSV Validator"
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
-  id: Grant ActAs Role
+  id: Grant ActAs to Cloud Build SA
   entrypoint: bash
   args:
     - -c
     - |
       gcloud iam service-accounts add-iam-policy-binding \
         101312727189-compute@developer.gserviceaccount.com \
-        --member="serviceAccount:tmt-dev-01@${_PROJECT_ID}.iam.gserviceaccount.com" \
+        --member="serviceAccount:tmt-dev-01@tmtrackdev01.iam.gserviceaccount.com" \
         --role="roles/iam.serviceAccountUser"
 
-# 15) Deploy CSV Validator Function
+# 14) Deploy CSV Validator
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Deploy CSV Validator
   entrypoint: bash
   args:
     - -c
     - |
+      cd cloud_function
+      python3 -m zipfile -c ../csv_validator.zip .
+      gsutil cp ../csv_validator.zip gs://${_DATA_BUCKET}/
+      cd ..
       gcloud functions deploy ${_FUNCTION_NAME} \
         --region=${_REGION} \
         --runtime=${_FUNCTION_RUNTIME} \
@@ -200,7 +205,7 @@ steps:
         --entry-point=${_FUNCTION_ENTRY} \
         --set-env-vars SUCCESS_TOPIC=${_SUCCESS_TOPIC},ERROR_TOPIC=${_ERROR_TOPIC}
 
-# 16) Upload Sample CSV
+# 15) Upload CSV
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Upload CSV
   entrypoint: bash
@@ -209,7 +214,7 @@ steps:
     - |
       gsutil cp RAPToR_Azure_Resources_Inventory_02-03-2024.csv gs://${_DATA_BUCKET}/
 
-# 17) Sync DAGs to Composer
+# 16) Sync DAGs to Composer
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   id: Sync DAGs
   entrypoint: bash
