@@ -104,26 +104,3 @@ resource "google_cloudfunctions_function" "csv_validator" {
 ##################################
 # 6) Environnement Composer
 ##################################
-resource  "google_composer_environment" "composer_env" {
-  project = var.project_id
-  region  = var.region
-  name    = "composer-env-wael"
-
-  config {
-    node_config {
-      service_account = data.google_service_account.dataloader_sa.email
-    }
-    software_config {
-      image_version = "composer-2.13.4-airflow-2.10.5"
-    }
-  }
-
-  lifecycle {
-    prevent_destroy = true
-    ignore_changes = [name]
-  }
-
-  depends_on = [
-    google_service_account_iam_member.cb_actas_dataloader,
-  ]
-}
