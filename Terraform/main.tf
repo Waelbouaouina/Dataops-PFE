@@ -116,6 +116,9 @@ resource  "google_composer_environment" "composer_env" {
     software_config {
       image_version = "composer-2.13.4-airflow-2.10.5"
     }
+    
+    environment_size = "ENVIRONMENT_SIZE_SMALL"
+
   }
 
   lifecycle {

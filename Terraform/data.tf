@@ -21,10 +21,3 @@ data "google_pubsub_topic" "csv_error_topic" {
   name    = "csv-error-topic"
 }
 
-#  Composer Environment (si déjà créé manuellement)
-data "google_composer_environment" "composer_env" {
-  name    = "composer-env-wael"
-  region  = var.region
-  project = var.project_id
-}
-
