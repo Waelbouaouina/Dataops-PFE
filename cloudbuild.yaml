@@ -11,7 +11,7 @@ substitutions:
   _BQ_DATASET:           "inventory_dataset"
   _IMAGE:                "gcr.io/tmtrackdev01/dataloader-image:latest"
   _FUNCTION_NAME:        "csv-validator"
-  _FUNCTION_RUNTIME:     "python310"
+  _FUNCTION_RUNTIME:     "python39"
   _FUNCTION_ENTRY:       "validate_csv"
   _SUCCESS_TOPIC:        "projects/tmtrackdev01/topics/csv-success-topic"
   _ERROR_TOPIC:          "projects/tmtrackdev01/topics/csv-error-topic"
