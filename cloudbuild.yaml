@@ -59,14 +59,6 @@ steps:
     - google_storage_bucket.new_data_bucket
     - tmt-storage-02
 
-# 4) Import existing Composer Environment
-- name: hashicorp/terraform:latest
-  id: Terraform Import Composer
-  dir: ${_TF_DIR}
-  args:
-    - import
-    - google_composer_environment.composer_env
-    - projects/${_PROJECT_ID}/locations/${_REGION}/environments/composer-env-wael
 
 # 5) Import existing BigQuery dataset
 - name: hashicorp/terraform:latest
