@@ -60,7 +60,7 @@ steps:
     - tmt-storage-02
 
 # 4) Import existing Composer Environment
-- name: hashicorp/terraform:latest
+- name: hashicorp/terraform
   id: Terraform Import Composer
   dir: ${_TF_DIR}
   args:
