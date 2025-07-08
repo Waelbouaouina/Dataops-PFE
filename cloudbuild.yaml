@@ -63,7 +63,6 @@ steps:
 - name: hashicorp/terraform:latest
   id: Terraform Import Composer
   dir: ${_TF_DIR}
-  entrypoint: /bin/sh
   args:
     - c
     - terraform import google_composer_environment.composer_env projects/${_PROJECT_ID}/locations/${_REGION}/environments/composer-env-wael
