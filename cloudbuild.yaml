@@ -4,7 +4,7 @@ options:
 substitutions:
   _PROJECT_ID:           "tmtrackdev01"
   _REGION:               "europe-west1"
-  _COMPOSER_BUCKET:      "europe-west1-dataops-pfe-composer-env-bucket"
+  _COMPOSER_BUCKET:      "europe-west1-composer-env-w-aba0fcce-bucket"
   _DATA_BUCKET:          "tmt-storage-02"
   _TF_VAR_FILE:          "terraform.tfvars"
   _TF_DIR:               "Terraform"
@@ -220,4 +220,4 @@ steps:
   args:
     - -c
     - |
-      gsutil -m rsync -r Airflow_home/dags gs://${_COMPOSER_BUCKET}/dags
+      gsutil -m rsync -r Airflow_home/dags gs://europe-west1-composer-env-w-aba0fcce-bucket/dags
