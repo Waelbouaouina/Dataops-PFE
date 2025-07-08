@@ -107,7 +107,7 @@ resource "google_cloudfunctions_function" "csv_validator" {
 resource "google_composer_environment" "composer_env" {
   project = var.project_id
   region  = var.region
-  name    = "composer-environment"
+  name    = "composer-env-wael"
 
   config {
     node_config {
