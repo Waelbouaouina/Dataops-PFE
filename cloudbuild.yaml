@@ -63,10 +63,10 @@ steps:
 - name: hashicorp/terraform:latest
   id: Terraform Import Composer
   dir: ${_TF_DIR}
+  entrypoint: /bin/sh
   args:
-    - import
-    - google_composer_environment.composer_env
-    - projects/${_PROJECT_ID}/locations/${_REGION}/environments/composer-env-wael
+    - c
+    - terraform import google_composer_environment.composer_env projects/${_PROJECT_ID}/locations/${_REGION}/environments/composer-env-wael
 
 # 5) Import existing BigQuery dataset
 - name: hashicorp/terraform:latest
